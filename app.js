@@ -473,7 +473,7 @@ window.saveDataSecurely = async function() {
 };
 
 // ============================================================
-// RESOLUÇÃO DEFINITIVA DO PDF (INJEÇÃO DIRETA)
+// GERAÇÃO DE PDF COM DESIGN PRESTIGE E COLUNAS DINÂMICAS
 // ============================================================
 
 window.generateIndividualPDF = function(studentId) {
@@ -483,8 +483,25 @@ window.generateIndividualPDF = function(studentId) {
     const isMedio = currentLevel === 'medio';
     const unit = isMedio ? '%' : '';
 
-    // O html2pdf aceita a string HTML pura. Injetamos o estilo in-line 
-    // para não depender do CSS externo (que pode estar bloqueado).
+    // Encontra o número máximo de avaliações entre todas as disciplinas
+    let maxActivities = 0;
+    subjects.forEach(sub => {
+        if (activities[sub] && activities[sub].length > maxActivities) {
+            maxActivities = activities[sub].length;
+        }
+    });
+
+    // Monta o cabeçalho dinâmico das colunas da tabela
+    let headersHTML = `<th style="padding: 12px; text-align: left; border: 1px solid #E2E5EE; width: 20%;">Disciplina</th>`;
+    for (let i = 0; i < maxActivities; i++) {
+        headersHTML += `<th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 10%;">Av. ${i + 1}</th>`;
+    }
+    headersHTML += `
+        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 15%;">Média Bim.</th>
+        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 15%;">Recuperação</th>
+        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 15%;">Média Final</th>
+    `;
+
     let htmlContent = `
         <div style="padding: 30px; font-family: 'DM Sans', sans-serif; color: #0D1B2A; background: #fff; width: 100%;">
             <h2 style="text-align: center; color: #0B1E3D; font-family: 'Playfair Display', serif; margin-bottom: 5px; font-size: 24px;">BOLETIM ESCOLAR INDIVIDUAL</h2>
@@ -496,13 +513,10 @@ window.generateIndividualPDF = function(studentId) {
                 <p style="margin: 4px 0; font-size: 14px; color: #1A3A6B;"><strong>Série/Ano:</strong> ${currentGrade} &nbsp;&nbsp;&nbsp;&nbsp; <strong>Turma:</strong> ${currentTurma}</p>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px;">
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px;">
                 <thead>
                     <tr style="background-color: #0B1E3D; color: white;">
-                        <th style="padding: 12px; text-align: left; border: 1px solid #E2E5EE;">Disciplina</th>
-                        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 130px;">Média Bimestral</th>
-                        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 130px;">Recuperação</th>
-                        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 130px;">Média Final</th>
+                        ${headersHTML}
                     </tr>
                 </thead>
                 <tbody>
@@ -512,10 +526,27 @@ window.generateIndividualPDF = function(studentId) {
         const medias = calculateAverages(student, sub);
         const recupMap = student.recup || {};
         const recupNota = recupMap[sub] !== undefined && recupMap[sub] !== null ? recupMap[sub].toFixed(1) + unit : '-';
+        
+        const subActivities = activities[sub] || [];
+        const subGrades = student.grades[sub] || {};
 
         htmlContent += `
             <tr>
                 <td style="padding: 12px; border: 1px solid #E2E5EE;"><strong>${sub}</strong></td>
+        `;
+        
+        // Preenche as colunas de atividades (Av 1, Av 2, etc)
+        for (let i = 0; i < maxActivities; i++) {
+            if (i < subActivities.length) {
+                const actId = subActivities[i].id;
+                const gradeVal = subGrades[actId] !== undefined && subGrades[actId] !== null ? subGrades[actId] + unit : '-';
+                htmlContent += `<td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #556070;">${gradeVal}</td>`;
+            } else {
+                htmlContent += `<td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #E2E5EE;">-</td>`;
+            }
+        }
+
+        htmlContent += `
                 <td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #556070;">${medias.bimestral.toFixed(1)}${unit}</td>
                 <td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #556070;">${recupNota}</td>
                 <td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; background: #F0F4F8; font-weight: bold; color: #0B1E3D;">${medias.final.toFixed(1)}${unit}</td>
@@ -524,7 +555,7 @@ window.generateIndividualPDF = function(studentId) {
     });
 
     if(subjects.length === 0) {
-        htmlContent += `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #8A95A0;">Nenhuma disciplina vinculada a esta pauta.</td></tr>`;
+        htmlContent += `<tr><td colspan="${maxActivities + 4}" style="padding: 20px; text-align: center; color: #8A95A0;">Nenhuma disciplina vinculada a esta pauta.</td></tr>`;
     }
 
     htmlContent += `
@@ -536,24 +567,36 @@ window.generateIndividualPDF = function(studentId) {
         </div>
     `;
 
+    const containerDiv = document.createElement('div');
+    containerDiv.innerHTML = htmlContent;
+    
+    containerDiv.style.position = 'absolute';
+    containerDiv.style.left = '-9999px';
+    containerDiv.style.top = '-9999px';
+    containerDiv.style.width = '794px'; 
+    document.body.appendChild(containerDiv);
+
     const opt = {
-        margin:       15,
-        filename:     `Boletim_Individual_${student.name.replace(/\s+/g, '_')}.pdf`,
+        margin:       10,
+        filename:     `Boletim_${student.name.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.99 },
-        html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+        html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(htmlContent).save();
+    window.html2pdf().set(opt).from(containerDiv).save().then(() => {
+        document.body.removeChild(containerDiv); 
+    }).catch(err => {
+        console.error("Erro no PDF:", err);
+        document.body.removeChild(containerDiv);
+    });
 };
 
 window.generateBoletimCompletoPDF = function() {
     const element = document.getElementById('grades-table').cloneNode(true);
     
-    // Remove as colunas de "Ações" que não devem ir para a impressão
     element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
     
-    // Converte inputs para texto simples
     element.querySelectorAll('input').forEach(input => {
         const span = document.createElement('span');
         span.textContent = input.value || "-";
@@ -562,7 +605,6 @@ window.generateBoletimCompletoPDF = function() {
         input.parentNode.replaceChild(span, input);
     });
 
-    // Blinda a tabela com CSS in-line para que o PDF nunca fique em branco
     element.style.width = '100%';
     element.style.borderCollapse = 'collapse';
     element.style.fontFamily = "'DM Sans', sans-serif";
@@ -589,6 +631,10 @@ window.generateBoletimCompletoPDF = function() {
     });
 
     const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '-9999px';
+    container.style.width = '1122px'; 
     container.style.padding = '20px';
     container.style.background = '#fff';
     
@@ -601,15 +647,22 @@ window.generateBoletimCompletoPDF = function() {
     title.style.paddingBottom = '10px';
     
     container.appendChild(title);
-    container.appendChild(element);
+    container.appendChild(element); 
+    
+    document.body.appendChild(container); 
 
     const opt = {
         margin:       10,
         filename:     `Pauta_Geral_${currentGrade}_${currentTurma}_${currentSubject}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+        html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
     };
 
-    html2pdf().set(opt).from(container).save();
+    window.html2pdf().set(opt).from(container).save().then(() => {
+        document.body.removeChild(container);
+    }).catch(err => {
+        console.error("Erro no PDF:", err);
+        document.body.removeChild(container);
+    });
 };
