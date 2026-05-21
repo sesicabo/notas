@@ -196,17 +196,7 @@ body {
     margin-bottom: 1.2rem;
 }
 
-.form-group label {
-    display: block;
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-    margin-bottom: 0.45rem;
-}
-
-.form-group input {
+.form-group input[type="email"], .form-group input[type="password"] {
     width: 100%;
     padding: 11px 14px;
     border: 1.5px solid var(--border);
@@ -526,7 +516,6 @@ th {
     white-space: nowrap;
 }
 
-/* Gold accent for first column header */
 th:first-child {
     border-left: 3px solid var(--gold);
     padding-left: 16px;
@@ -563,7 +552,6 @@ tbody tr:hover td:first-child { border-left-color: var(--gold); }
     font-size: 0.9rem;
 }
 
-/* Activity header inputs */
 .activity-header input {
     background: transparent;
     border: none;
@@ -581,7 +569,6 @@ tbody tr:hover td:first-child { border-left-color: var(--gold); }
 .activity-header input::placeholder { color: rgba(255,255,255,0.4); }
 .activity-header input:focus { border-bottom-color: var(--gold-light); }
 
-/* Grade inputs */
 td input[type="number"] {
     width: 70px;
     padding: 6px 8px;
@@ -601,7 +588,6 @@ td input[type="number"]:focus {
     background: #fff;
 }
 
-/* Actions cell */
 .actions-cell {
     display: flex;
     gap: 0.35rem;
@@ -613,7 +599,6 @@ td input[type="number"]:focus {
     letter-spacing: 0.02em;
 }
 
-/* --- Overflow scrollable table --- */
 .table-container { overflow-x: auto; }
 
 /* ============================================================
@@ -708,6 +693,42 @@ td input[type="number"]:focus {
 }
 
 .modal-actions button { min-width: 120px; justify-content: center; }
+
+/* ============================================================
+   ALERTAS E NOTIFICAÇÕES (NOVO BLOCO INTEGRADO)
+   ============================================================ */
+.alert-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 1.2rem;
+    border-radius: var(--radius-md);
+    font-size: 0.84rem;
+    box-shadow: var(--shadow-sm);
+    border-left: 4px solid transparent;
+    line-height: 1.5;
+}
+
+.compatibility-alert {
+    background-color: #EBF3FC;
+    border-left-color: #0056b3;
+    color: var(--navy);
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.save-reminder {
+    background-color: #FFF9E6;
+    border-left-color: var(--gold);
+    color: #5C4308;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.alert-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
 
 /* ============================================================
    UTILITÁRIOS
