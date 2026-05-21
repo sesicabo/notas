@@ -120,7 +120,6 @@ window.loadClassData = async function() {
         return;
     }
     
-    // Baixa os dados globais da turma (Alunos, Matérias e Grade de Avaliações)
     await fetchFromDatabaseSecurely(currentLevel, currentGrade, currentTurma);
     showSubjectControls();
     updateSubjectsDropdown();
@@ -240,7 +239,7 @@ window.confirmAddDisciplina = function() {
     }
     
     subjects.push(formatado);
-    activities[formatado] = []; // Inicializa grade de avaliações vazia para a matéria
+    activities[formatado] = []; 
     
     updateSubjectsDropdown();
     document.getElementById('subject-select').value = formatado;
@@ -250,7 +249,7 @@ window.confirmAddDisciplina = function() {
 
 window.deleteDisciplina = function() {
     if (!currentSubject) return alert("Selecione uma disciplina para excluir.");
-    if (confirm(`Tem certeza que deseja remover a disciplina de ${currentSubject}? Todas as colunas de teste, trabalho e notas lançadas nesta matéria serão apagadas.`)) {
+    if (confirm(`Tem certeza que deseja remover a disciplina de ${currentSubject}? Todas as avaliações desta matéria serão apagadas.`)) {
         subjects = subjects.filter(s => s !== currentSubject);
         delete activities[currentSubject];
         students.forEach(st => {
@@ -311,7 +310,7 @@ function renderTable() {
             <th class="activity-header">
                 <input type="text" value="${act.name}" onchange="updateActivityName('${act.id}', this.value)" placeholder="Nome">
                 <br>
-                <span style="font-size: 11px; font-weight: normal;">(Máx: ${maxValue}${isMedio ? '%' : ''})</span>
+                <span style="font-size: 11px; font-weight: normal; color: rgba(255,255,255,0.6);">(Máx: ${maxValue}${isMedio ? '%' : ''})</span>
             </th>
         `;
     });
@@ -350,8 +349,8 @@ function renderTable() {
             </td>
             <td class="readonly-cell">${medias.final.toFixed(1)}${isMedio ? '%' : ''}</td>
             <td class="actions-cell">
-                <button class="btn-primary" onclick="generateIndividualPDF(${student.id})">📄 Boletim</button>
-                <button class="btn-danger" onclick="removeStudent(${student.id})">Excluir</button>
+                <button class="btn-gold" onclick="generateIndividualPDF(${student.id})">📄 Boletim</button>
+                <button class="btn-danger" onclick="removeStudent(${student.id})">✕</button>
             </td>
         </tr>`;
         
@@ -359,7 +358,7 @@ function renderTable() {
     });
 }
 
-// --- ATUALIZAÇÕES COM ARQUITETURA MATRICIAL ---
+// --- ATUALIZAÇÕES MATRICIAIS ---
 window.updateGrade = function(studentId, activityId, value) {
     const student = students.find(s => s.id === studentId);
     if (!student.grades[currentSubject]) student.grades[currentSubject] = {};
@@ -421,7 +420,7 @@ function calculateAverages(student, subjectName) {
     return { bimestral: mediaBimestral, final: mediaFinal };
 }
 
-// --- COMUNICAÇÃO SEGURO COM FIRESTORE (CONCORRÊNCIA BLINDADA) ---
+// --- COMUNICAÇÃO SEGURO COM FIRESTORE ---
 async function fetchFromDatabaseSecurely(level, grade, turma) {
     try {
         const docId = `${level}_${grade}_${turma}`;
@@ -439,8 +438,8 @@ async function fetchFromDatabaseSecurely(level, grade, turma) {
             activities = {};
         }
     } catch (error) {
-        console.error("Erro ao ler banco de dados: ", error);
-        alert("Erro ao conectar com a nuvem. Verifique sua conexão.");
+        console.error("Erro ao ler banco: ", error);
+        alert("Erro de conexão. Verifique sua rede.");
     }
 }
 
@@ -448,7 +447,7 @@ window.saveDataSecurely = async function() {
     const btn = document.getElementById('btn-save');
     const originalText = btn.textContent;
     try {
-        btn.textContent = "Sincronizando Banco de Dados...";
+        btn.textContent = "Sincronizando Nuvem...";
         btn.disabled = true;
         
         const docId = `${currentLevel}_${currentGrade}_${currentTurma}`;
@@ -463,17 +462,20 @@ window.saveDataSecurely = async function() {
             }, { merge: true });
         });
         
-        alert("Sincronização concluída! Dados protegidos na nuvem.");
+        alert("Dados salvos e sincronizados com a nuvem SESI!");
     } catch (error) {
         console.error("Erro na gravação: ", error);
-        alert("Falha ao salvar dados na nuvem, realize uma nova tentativa.");
+        alert("Falha ao salvar. Tente novamente.");
     } finally {
         btn.textContent = originalText;
         btn.disabled = false;
     }
 };
 
-// --- ARQUITETURA DE DOCUMENTOS INDIVIDUALIZADOS (PDF) ---
+// ============================================================
+// CORREÇÃO CRÍTICA DO PDF: GERAÇÃO ANEXADA AO DOM
+// ============================================================
+
 window.generateIndividualPDF = function(studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
@@ -482,23 +484,23 @@ window.generateIndividualPDF = function(studentId) {
     const unit = isMedio ? '%' : '';
 
     let htmlContent = `
-        <div style="padding: 30px; font-family: 'Segoe UI', sans-serif; color: #333;">
-            <h2 style="text-align: center; color: #0056b3; margin-bottom: 5px; letter-spacing: 1px;">BOLETIM ESCOLAR INDIVIDUAL</h2>
-            <p style="text-align: center; font-size: 13px; margin-bottom: 30px; color: #666; text-transform: uppercase;">Registro Oficial de Aproveitamento</p>
+        <div style="padding: 30px; font-family: 'DM Sans', sans-serif; color: #0D1B2A; background: #fff; width: 100%;">
+            <h2 style="text-align: center; color: #0B1E3D; font-family: 'Playfair Display', serif; margin-bottom: 5px; font-size: 24px;">BOLETIM ESCOLAR INDIVIDUAL</h2>
+            <p style="text-align: center; font-size: 13px; margin-bottom: 30px; color: #556070; text-transform: uppercase; letter-spacing: 1px;">Registro Oficial de Aproveitamento</p>
             
-            <div style="margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-left: 5px solid #0056b3; border-radius: 4px;">
-                <p style="margin: 4px 0; font-size: 15px;"><strong>Estudante:</strong> ${student.name}</p>
-                <p style="margin: 4px 0; font-size: 14px;"><strong>Segmento:</strong> ${document.getElementById('level-select').options[document.getElementById('level-select').selectedIndex].text}</p>
-                <p style="margin: 4px 0; font-size: 14px;"><strong>Série/Ano:</strong> ${currentGrade} &nbsp;&nbsp;&nbsp;&nbsp; <strong>Turma:</strong> ${currentTurma}</p>
+            <div style="margin-bottom: 25px; padding: 18px; background: #FAFAF6; border-left: 5px solid #C9A227; border-radius: 6px;">
+                <p style="margin: 4px 0; font-size: 16px;"><strong>Estudante:</strong> ${student.name}</p>
+                <p style="margin: 4px 0; font-size: 14px; color: #1A3A6B;"><strong>Segmento:</strong> ${document.getElementById('level-select').options[document.getElementById('level-select').selectedIndex].text}</p>
+                <p style="margin: 4px 0; font-size: 14px; color: #1A3A6B;"><strong>Série/Ano:</strong> ${currentGrade} &nbsp;&nbsp;&nbsp;&nbsp; <strong>Turma:</strong> ${currentTurma}</p>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px;">
                 <thead>
-                    <tr style="background-color: #0056b3; color: white;">
-                        <th style="padding: 12px; text-align: left; border: 1px solid #ddd; font-size: 14px;">Disciplina</th>
-                        <th style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 14px; width: 130px;">Média Bimestral</th>
-                        <th style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 14px; width: 130px;">Recuperação</th>
-                        <th style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 14px; width: 130px;">Média Final</th>
+                    <tr style="background-color: #0B1E3D; color: white;">
+                        <th style="padding: 12px; text-align: left; border: 1px solid #E2E5EE;">Disciplina</th>
+                        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 130px;">Média Bimestral</th>
+                        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 130px;">Recuperação</th>
+                        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 130px;">Média Final</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -510,58 +512,106 @@ window.generateIndividualPDF = function(studentId) {
         const recupNota = recupMap[sub] !== undefined && recupMap[sub] !== null ? recupMap[sub].toFixed(1) + unit : '-';
 
         htmlContent += `
-            <tr style="background: #fff;">
-                <td style="padding: 12px; border: 1px solid #ddd; font-size: 14px;"><strong>${sub}</strong></td>
-                <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 14px;">${medias.bimestral.toFixed(1)}${unit}</td>
-                <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 14px;">${recupNota}</td>
-                <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 14px; background: #f1f3f5; font-weight: bold; color: #0056b3;">${medias.final.toFixed(1)}${unit}</td>
+            <tr>
+                <td style="padding: 12px; border: 1px solid #E2E5EE;"><strong>${sub}</strong></td>
+                <td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #556070;">${medias.bimestral.toFixed(1)}${unit}</td>
+                <td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #556070;">${recupNota}</td>
+                <td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; background: #F0F4F8; font-weight: bold; color: #0B1E3D;">${medias.final.toFixed(1)}${unit}</td>
             </tr>
         `;
     });
 
     if(subjects.length === 0) {
-        htmlContent += `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #777;">Nenhuma disciplina vinculada a esta pauta.</td></tr>`;
+        htmlContent += `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #8A95A0;">Nenhuma disciplina vinculada a esta pauta.</td></tr>`;
     }
 
     htmlContent += `
                 </tbody>
             </table>
-            <div style="margin-top: 50px; text-align: center; font-size: 12px; color: #996;">
-                <p>Documento gerado digitalmente de forma automatizada via Sistema de Gestão Acadêmica.</p>
+            <div style="margin-top: 50px; text-align: center; font-size: 11px; color: #8A95A0; border-top: 1px solid #E2E5EE; padding-top: 15px;">
+                <p>SESI Cabo de Santo Agostinho • Documento gerado digitalmente via Sistema de Gestão Acadêmica.</p>
             </div>
         </div>
     `;
 
+    // 1. Criação do container
     const containerDiv = document.createElement('div');
     containerDiv.innerHTML = htmlContent;
-
-    const opt = {
-        margin:       15,
-        filename:     `Boletim_Individual_${student.name.replace(/\s+/g, '_')}.pdf`,
-        image:        { type: 'jpeg', quality: 0.99 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    html2pdf().set(opt).from(containerDiv).save();
-};
-
-window.generateBoletimCompletoPDF = function() {
-    const element = document.getElementById('grades-table').cloneNode(true);
-    element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
-    element.querySelectorAll('input').forEach(input => {
-        const span = document.createElement('span');
-        span.textContent = input.value || "-";
-        input.parentNode.replaceChild(span, input);
-    });
+    
+    // 2. Anexação silenciosa no DOM (Obrigatório para o html2canvas ler o CSS)
+    containerDiv.style.position = 'absolute';
+    containerDiv.style.left = '-9999px';
+    containerDiv.style.top = '-9999px';
+    containerDiv.style.width = '794px'; // Medida exata de A4 Vertical para evitar cortes
+    document.body.appendChild(containerDiv);
 
     const opt = {
         margin:       10,
-        filename:     `Pauta_Geral_${currentGrade}_Turma_${currentTurma}_${currentSubject}.pdf`,
+        filename:     `Boletim_${student.name.replace(/\s+/g, '_')}.pdf`,
+        image:        { type: 'jpeg', quality: 0.99 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    window.html2pdf().set(opt).from(containerDiv).save().then(() => {
+        document.body.removeChild(containerDiv); // Limpa o documento invisível após baixar
+    }).catch(err => {
+        console.error("Erro no PDF:", err);
+        document.body.removeChild(containerDiv);
+    });
+};
+
+window.generateBoletimCompletoPDF = function() {
+    // 1. Clona a tabela existente para não bagunçar a visualização do professor
+    const element = document.getElementById('grades-table').cloneNode(true);
+    
+    // 2. Remove as colunas de "Ações" que não devem ir para a impressão
+    element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
+    
+    // 3. Converte as caixas de digitação em textos simples para o PDF ficar limpo
+    element.querySelectorAll('input').forEach(input => {
+        const span = document.createElement('span');
+        span.textContent = input.value || "-";
+        span.style.fontWeight = 'bold';
+        span.style.color = '#0B1E3D';
+        input.parentNode.replaceChild(span, input);
+    });
+
+    // 4. Cria o layout do PDF anexado ao corpo da página
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '-9999px';
+    container.style.width = '1122px'; // Medida A4 Horizontal
+    container.style.padding = '20px';
+    container.style.background = '#fff';
+    
+    // 5. Adiciona o cabeçalho chique da pauta geral
+    const title = document.createElement('h2');
+    title.innerHTML = `Pauta Acadêmica de Classe <br><span style="font-size:14px; color:#556070; font-family: 'DM Sans', sans-serif; font-weight: normal; letter-spacing: 0.5px;">Série: ${currentGrade} | Turma: ${currentTurma} | Disciplina: ${currentSubject}</span>`;
+    title.style.color = '#0B1E3D';
+    title.style.fontFamily = "'Playfair Display', serif";
+    title.style.marginBottom = '25px';
+    title.style.borderBottom = '2px solid #C9A227';
+    title.style.paddingBottom = '10px';
+    
+    container.appendChild(title);
+    container.appendChild(element); // Adiciona a tabela manipulada
+    
+    document.body.appendChild(container); // O pulo do gato!
+
+    const opt = {
+        margin:       10,
+        filename:     `Pauta_Geral_${currentGrade}_${currentTurma}_${currentSubject}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
+        html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
     };
 
-    html2pdf().set(opt).from(element).save();
+    window.html2pdf().set(opt).from(container).save().then(() => {
+        document.body.removeChild(container);
+    }).catch(err => {
+        console.error("Erro no PDF:", err);
+        document.body.removeChild(container);
+    });
 };
