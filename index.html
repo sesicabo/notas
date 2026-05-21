@@ -3,87 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestão Acadêmica - Diário Seguro</title>
+    <title>Diário Acadêmico — SESI Cabo de Santo Agostinho</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
+    <!-- ======================================================
+         TELA DE LOGIN
+         ====================================================== -->
     <div id="login-screen" class="screen active">
-        <div class="login-box">
-            <h2>Acesso do Professor</h2>
-            <form id="login-form">
-                <input type="email" id="email" placeholder="E-mail institucional" required>
-                <input type="password" id="password" placeholder="Senha" required>
-                <button type="submit" class="btn-primary">Entrar no Sistema</button>
-            </form>
+        <div class="login-card">
+
+            <!-- Painel de Marca -->
+            <div class="login-brand">
+                <div class="brand-logo">
+                    <div class="brand-emblem">🎓</div>
+                    <div class="brand-text-block">
+                        <div class="brand-name">SESI</div>
+                        <div class="brand-unit">Cabo de Santo Agostinho</div>
+                    </div>
+                </div>
+
+                <div class="brand-headline">
+                    <h1>Gestão<br><em>Acadêmica</em><br>Digital</h1>
+                    <div class="brand-divider"></div>
+                    <p>Plataforma segura para registro, acompanhamento e gestão do desempenho estudantil.</p>
+                </div>
+
+                <div class="brand-footer">
+                    SESI-PE © 2025 · Todos os direitos reservados
+                </div>
+            </div>
+
+            <!-- Formulário -->
+            <div class="login-form-section">
+                <h2>Acesso ao Sistema</h2>
+                <p class="form-subtitle">Insira suas credenciais institucionais para continuar</p>
+
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="email">E-mail institucional</label>
+                        <input type="email" id="email" placeholder="professor@sesi.org.br" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Senha</label>
+                        <input type="password" id="password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn-login">Entrar no Sistema →</button>
+                </form>
+            </div>
+
         </div>
     </div>
 
+
+    <!-- ======================================================
+         DASHBOARD
+         ====================================================== -->
     <div id="dashboard-screen" class="screen">
-        <header>
-            <h2>Painel Acadêmico</h2>
-            <button onclick="logout()" class="btn-danger">Sair</button>
+
+        <!-- Topbar fixa -->
+        <header class="topbar">
+            <div class="topbar-brand">
+                <div class="topbar-emblem">🎓</div>
+                <div class="topbar-title">
+                    Diário Acadêmico
+                    <small>SESI Cabo de Santo Agostinho</small>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <span class="topbar-user">Painel do Professor</span>
+                <button onclick="logout()" class="btn-logout">Sair</button>
+            </div>
         </header>
-        
-        <div class="controls-section">
-            <select id="level-select" onchange="updateGrades()">
-                <option value="">1. Selecione o Nível...</option>
-                <option value="fund1">Ensino Fundamental I (0 a 10)</option>
-                <option value="fund2">Ensino Fundamental II (0 a 10)</option>
-                <option value="medio">Ensino Médio (0 a 100%)</option>
-            </select>
 
-            <select id="grade-select" disabled onchange="updateTurmas()">
-                <option value="">2. Selecione a Série...</option>
-            </select>
+        <div class="dashboard-content">
 
-            <select id="turma-select" disabled onchange="loadClassData()">
-                <option value="">3. Selecione a Turma...</option>
-            </select>
+            <!-- Cabeçalho da Página -->
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2>Painel Acadêmico</h2>
+                    <div class="breadcrumb">
+                        <span>SESI</span>
+                        <span class="breadcrumb-sep">›</span>
+                        <span>Gestão de Notas</span>
+                        <span class="breadcrumb-sep">›</span>
+                        <span>Diário de Classe</span>
+                    </div>
+                </div>
+            </div>
 
-            <select id="subject-select" disabled onchange="loadSubjectData()">
-                <option value="">4. Selecione a Disciplina...</option>
-            </select>
-        </div>
+            <!-- Seletor de Turma/Disciplina -->
+            <div class="selector-card">
+                <div class="selector-card-title">📍 Seleção de Contexto</div>
+                <div class="controls-section">
+                    <select id="level-select" onchange="updateGrades()">
+                        <option value="">1. Selecione o Nível...</option>
+                        <option value="fund1">Ensino Fundamental I (0 a 10)</option>
+                        <option value="fund2">Ensino Fundamental II (0 a 10)</option>
+                        <option value="medio">Ensino Médio (0 a 100%)</option>
+                    </select>
 
-        <div class="setup-buttons-row">
-            <button id="btn-add-turma" class="btn-secondary hidden" onclick="openTurmaModal()">+ Turma</button>
-            <button id="btn-del-turma" class="btn-danger hidden" onclick="deleteTurma()">- Excluir Turma</button>
-            <button id="btn-add-sub" class="btn-secondary hidden" onclick="openDisciplinaModal()">+ Disciplina</button>
-            <button id="btn-del-sub" class="btn-danger hidden" onclick="deleteDisciplina()">- Excluir Disciplina</button>
-        </div>
+                    <select id="grade-select" disabled onchange="updateTurmas()">
+                        <option value="">2. Selecione a Série...</option>
+                    </select>
 
-        <div id="management-section" class="hidden">
-            <hr style="margin: 1rem 0; border: 0; border-top: 1px solid #ccc;">
-            <button onclick="openStudentModal()" class="btn-secondary">+ Adicionar Aluno</button>
-            <button onclick="addActivityColumn()" class="btn-secondary">+ Nova Avaliação</button>
-            <button onclick="saveDataSecurely()" class="btn-success" id="btn-save">💾 Salvar Notas na Nuvem</button>
-            <button onclick="generateBoletimCompletoPDF()" class="btn-primary">📄 Gerar Pauta Geral (PDF)</button>
-        </div>
+                    <select id="turma-select" disabled onchange="loadClassData()">
+                        <option value="">3. Selecione a Turma...</option>
+                    </select>
 
-        <div class="table-container hidden" id="table-container">
-            <table id="grades-table">
-                <thead>
-                    <tr id="table-header">
-                        <th>Aluno</th>
-                        <th>Média Bimestral</th>
-                        <th>Recuperação</th>
-                        <th>Média Final</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="table-body">
+                    <select id="subject-select" disabled onchange="loadSubjectData()">
+                        <option value="">4. Selecione a Disciplina...</option>
+                    </select>
+                </div>
+
+                <div class="setup-buttons-row" style="margin-top: 0.85rem;">
+                    <button id="btn-add-turma" class="btn-secondary hidden" onclick="openTurmaModal()">＋ Turma</button>
+                    <button id="btn-del-turma" class="btn-danger hidden" onclick="deleteTurma()">✕ Excluir Turma</button>
+                    <button id="btn-add-sub" class="btn-secondary hidden" onclick="openDisciplinaModal()">＋ Disciplina</button>
+                    <button id="btn-del-sub" class="btn-danger hidden" onclick="deleteDisciplina()">✕ Excluir Disciplina</button>
+                </div>
+            </div>
+
+            <!-- Ações de Gestão da Turma -->
+            <div id="management-section" class="hidden">
+                <button onclick="openStudentModal()" class="btn-secondary">＋ Aluno</button>
+                <button onclick="addActivityColumn()" class="btn-outline-navy">＋ Nova Avaliação</button>
+                <button onclick="saveDataSecurely()" class="btn-success" id="btn-save">💾 Salvar na Nuvem</button>
+                <button onclick="generateBoletimCompletoPDF()" class="btn-primary">📄 Pauta Geral (PDF)</button>
+            </div>
+
+            <!-- Tabela de Notas -->
+            <div class="table-container hidden" id="table-container">
+                <table id="grades-table">
+                    <thead>
+                        <tr id="table-header">
+                            <th>Estudante</th>
+                            <th>Média Bimestral</th>
+                            <th>Recuperação</th>
+                            <th>Média Final</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
                     </tbody>
-            </table>
-        </div>
-    </div>
+                </table>
+            </div>
 
+        </div><!-- /dashboard-content -->
+    </div><!-- /dashboard-screen -->
+
+
+    <!-- ======================================================
+         MODAIS
+         ====================================================== -->
+
+    <!-- Modal: Nova Turma -->
     <div id="modal-turma" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3>Adicionar Nova Turma</h3>
-            <p>Digite a identificação da Turma (Ex: A, B, C, Única):</p>
-            <input type="text" id="input-turma-name" placeholder="Ex: A">
+            <div class="modal-header">
+                <div class="modal-header-icon">🏫</div>
+                <h3>Adicionar Nova Turma</h3>
+            </div>
+            <div class="modal-body">
+                <p>Digite a identificação da turma (Ex: A, B, C, Única):</p>
+                <input type="text" id="input-turma-name" placeholder="Ex: A">
+            </div>
             <div class="modal-actions">
                 <button onclick="closeModal('modal-turma')" class="btn-secondary">Cancelar</button>
                 <button onclick="confirmAddTurma()" class="btn-primary">Adicionar Turma</button>
@@ -91,11 +179,17 @@
         </div>
     </div>
 
+    <!-- Modal: Nova Disciplina -->
     <div id="modal-disciplina" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3>Adicionar Nova Disciplina</h3>
-            <p>Digite o nome da matéria (Ex: Matemática, Português, História):</p>
-            <input type="text" id="input-disciplina-name" placeholder="Ex: Matemática">
+            <div class="modal-header">
+                <div class="modal-header-icon">📚</div>
+                <h3>Adicionar Nova Disciplina</h3>
+            </div>
+            <div class="modal-body">
+                <p>Digite o nome da matéria (Ex: Matemática, Português, História):</p>
+                <input type="text" id="input-disciplina-name" placeholder="Ex: Matemática">
+            </div>
             <div class="modal-actions">
                 <button onclick="closeModal('modal-disciplina')" class="btn-secondary">Cancelar</button>
                 <button onclick="confirmAddDisciplina()" class="btn-primary">Adicionar Disciplina</button>
@@ -103,11 +197,17 @@
         </div>
     </div>
 
+    <!-- Modal: Novo Aluno -->
     <div id="modal-student" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3>Adicionar Novo Aluno</h3>
-            <p>Digite o nome completo do aluno:</p>
-            <input type="text" id="input-student-name" placeholder="Nome completo">
+            <div class="modal-header">
+                <div class="modal-header-icon">👤</div>
+                <h3>Adicionar Novo Aluno</h3>
+            </div>
+            <div class="modal-body">
+                <p>Digite o nome completo do estudante:</p>
+                <input type="text" id="input-student-name" placeholder="Nome completo">
+            </div>
             <div class="modal-actions">
                 <button onclick="closeModal('modal-student')" class="btn-secondary">Cancelar</button>
                 <button onclick="confirmAddStudent()" class="btn-primary">Adicionar Aluno</button>
