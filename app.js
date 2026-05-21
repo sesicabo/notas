@@ -21,9 +21,9 @@ let currentLevel = '';
 let currentGrade = '';
 let currentTurma = '';
 let currentSubject = '';
-let activities = {};  // Mapeado por matéria: { "Matemática": [...], "Português": [...] }
-let students = [];    // Alunos da turma corrente
-let subjects = [];    // Lista de matérias cadastradas na turma corrente
+let activities = {};  
+let students = [];    
+let subjects = [];    
 let escolaConfig = {}; 
 
 const seriesMap = {
@@ -473,7 +473,7 @@ window.saveDataSecurely = async function() {
 };
 
 // ============================================================
-// CORREÇÃO CRÍTICA DO PDF: GERAÇÃO ANEXADA AO DOM
+// RESOLUÇÃO DEFINITIVA DO PDF (INJEÇÃO DIRETA)
 // ============================================================
 
 window.generateIndividualPDF = function(studentId) {
@@ -483,6 +483,8 @@ window.generateIndividualPDF = function(studentId) {
     const isMedio = currentLevel === 'medio';
     const unit = isMedio ? '%' : '';
 
+    // O html2pdf aceita a string HTML pura. Injetamos o estilo in-line 
+    // para não depender do CSS externo (que pode estar bloqueado).
     let htmlContent = `
         <div style="padding: 30px; font-family: 'DM Sans', sans-serif; color: #0D1B2A; background: #fff; width: 100%;">
             <h2 style="text-align: center; color: #0B1E3D; font-family: 'Playfair Display', serif; margin-bottom: 5px; font-size: 24px;">BOLETIM ESCOLAR INDIVIDUAL</h2>
@@ -534,41 +536,24 @@ window.generateIndividualPDF = function(studentId) {
         </div>
     `;
 
-    // 1. Criação do container
-    const containerDiv = document.createElement('div');
-    containerDiv.innerHTML = htmlContent;
-    
-    // 2. Anexação silenciosa no DOM (Obrigatório para o html2canvas ler o CSS)
-    containerDiv.style.position = 'absolute';
-    containerDiv.style.left = '-9999px';
-    containerDiv.style.top = '-9999px';
-    containerDiv.style.width = '794px'; // Medida exata de A4 Vertical para evitar cortes
-    document.body.appendChild(containerDiv);
-
     const opt = {
-        margin:       10,
-        filename:     `Boletim_${student.name.replace(/\s+/g, '_')}.pdf`,
+        margin:       15,
+        filename:     `Boletim_Individual_${student.name.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.99 },
-        html2canvas:  { scale: 2, useCORS: true },
+        html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    window.html2pdf().set(opt).from(containerDiv).save().then(() => {
-        document.body.removeChild(containerDiv); // Limpa o documento invisível após baixar
-    }).catch(err => {
-        console.error("Erro no PDF:", err);
-        document.body.removeChild(containerDiv);
-    });
+    html2pdf().set(opt).from(htmlContent).save();
 };
 
 window.generateBoletimCompletoPDF = function() {
-    // 1. Clona a tabela existente para não bagunçar a visualização do professor
     const element = document.getElementById('grades-table').cloneNode(true);
     
-    // 2. Remove as colunas de "Ações" que não devem ir para a impressão
+    // Remove as colunas de "Ações" que não devem ir para a impressão
     element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
     
-    // 3. Converte as caixas de digitação em textos simples para o PDF ficar limpo
+    // Converte inputs para texto simples
     element.querySelectorAll('input').forEach(input => {
         const span = document.createElement('span');
         span.textContent = input.value || "-";
@@ -577,16 +562,36 @@ window.generateBoletimCompletoPDF = function() {
         input.parentNode.replaceChild(span, input);
     });
 
-    // 4. Cria o layout do PDF anexado ao corpo da página
+    // Blinda a tabela com CSS in-line para que o PDF nunca fique em branco
+    element.style.width = '100%';
+    element.style.borderCollapse = 'collapse';
+    element.style.fontFamily = "'DM Sans', sans-serif";
+    element.style.fontSize = '14px';
+
+    element.querySelectorAll('th').forEach(th => {
+        th.style.backgroundColor = '#0B1E3D';
+        th.style.color = 'white';
+        th.style.padding = '12px';
+        th.style.textAlign = 'left';
+        th.style.border = '1px solid #E2E5EE';
+    });
+
+    element.querySelectorAll('td').forEach(td => {
+        td.style.padding = '12px';
+        td.style.border = '1px solid #E2E5EE';
+        td.style.color = '#0D1B2A';
+    });
+
+    element.querySelectorAll('.readonly-cell').forEach(cell => {
+        cell.style.backgroundColor = '#F0F4F8';
+        cell.style.fontWeight = 'bold';
+        cell.style.color = '#0B1E3D';
+    });
+
     const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.top = '-9999px';
-    container.style.width = '1122px'; // Medida A4 Horizontal
     container.style.padding = '20px';
     container.style.background = '#fff';
     
-    // 5. Adiciona o cabeçalho chique da pauta geral
     const title = document.createElement('h2');
     title.innerHTML = `Pauta Acadêmica de Classe <br><span style="font-size:14px; color:#556070; font-family: 'DM Sans', sans-serif; font-weight: normal; letter-spacing: 0.5px;">Série: ${currentGrade} | Turma: ${currentTurma} | Disciplina: ${currentSubject}</span>`;
     title.style.color = '#0B1E3D';
@@ -596,22 +601,15 @@ window.generateBoletimCompletoPDF = function() {
     title.style.paddingBottom = '10px';
     
     container.appendChild(title);
-    container.appendChild(element); // Adiciona a tabela manipulada
-    
-    document.body.appendChild(container); // O pulo do gato!
+    container.appendChild(element);
 
     const opt = {
         margin:       10,
         filename:     `Pauta_Geral_${currentGrade}_${currentTurma}_${currentSubject}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
+        html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
     };
 
-    window.html2pdf().set(opt).from(container).save().then(() => {
-        document.body.removeChild(container);
-    }).catch(err => {
-        console.error("Erro no PDF:", err);
-        document.body.removeChild(container);
-    });
+    html2pdf().set(opt).from(container).save();
 };
