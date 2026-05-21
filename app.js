@@ -1,6 +1,8 @@
+// --- IMPORTAÇÕES DO FIREBASE (Via CDN oficial v10) ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// --- CONFIGURAÇÃO DO SEU FIREBASE (PLATNOTA2B) ---
 const firebaseConfig = {
     apiKey: "AIzaSyCVv-O51F9iZDSXKzbINQUFAb-ZlFKlFWM",
     authDomain: "platnota2b.firebaseapp.com",
@@ -10,6 +12,7 @@ const firebaseConfig = {
     appId: "1:488178786002:web:7a8dd6457f5fe5d43c970b"
 };
 
+// Inicializar Aplicativo e Firestore
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -19,7 +22,8 @@ let currentGrade = '';
 let currentTurma = '';
 let activities = []; 
 let students = []; 
-let escolaConfig = {}; 
+let { turmasMap: escolaConfig } = { turmasMap: {} }; 
+escolaConfig = {};
 
 const seriesMap = {
     'fund1': ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano'],
@@ -27,12 +31,13 @@ const seriesMap = {
     'medio': ['1ª Série', '2ª Série', '3ª Série']
 };
 
-// --- AUTENTICAÇÃO ---
+// --- AUTENTICAÇÃO SIMULADA ---
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     document.getElementById('login-screen').classList.remove('active');
     document.getElementById('dashboard-screen').classList.add('active');
     
+    // Baixar a árvore estrutural de turmas salvas na nuvem
     try {
         const configRef = doc(db, "config", "estrutura_escola");
         const configSnap = await getDoc(configRef);
@@ -50,7 +55,7 @@ window.logout = function() {
     hideTable();
 };
 
-// --- NAVEGAÇÃO E SELEÇÃO ---
+// --- NAVEGAÇÃO E SELEÇÃO HIERÁRQUICA ---
 window.updateGrades = function() {
     currentLevel = document.getElementById('level-select').value;
     const gradeSelect = document.getElementById('grade-select');
@@ -127,7 +132,7 @@ function hideTable() {
     document.getElementById('table-container').classList.add('hidden');
 }
 
-// --- CONTROLES DE MODAL (SUBSTITUINDO O PROMPT) ---
+// --- LOGICA DE GERENCIAMENTO POR MODAIS ---
 window.closeModal = function(modalId) {
     document.getElementById(modalId).classList.add('hidden');
 };
@@ -147,7 +152,7 @@ window.confirmAddTurma = async function() {
     
     const nomeFormatado = nomeTurma.trim().toUpperCase();
     if (escolaConfig[key].includes(nomeFormatado)) {
-        alert("Esta turma já está cadastrada!");
+        alert("Esta turma já está cadastrada nesta série!");
         return;
     }
     
@@ -158,6 +163,23 @@ window.confirmAddTurma = async function() {
     document.getElementById('turma-select').value = nomeFormatado;
     loadClassData();
     closeModal('modal-turma');
+};
+
+window.deleteTurma = async function() {
+    const turmaSelect = document.getElementById('turma-select');
+    const turmaSelecionada = turmaSelect.value;
+    
+    if (!turmaSelecionada) return alert("Por favor, selecione uma turma primeiro.");
+    
+    if (confirm(`CRÍTICO: Tem certeza que deseja apagar a Turma ${turmaSelecionada}? Todos os alunos e notas vinculados serão perdidos para sempre na nuvem.`)) {
+        const key = `${currentLevel}_${currentGrade}`;
+        escolaConfig[key] = escolaConfig[key].filter(t => t !== turmaSelecionada);
+        
+        await setDoc(doc(db, "config", "estrutura_escola"), { turmasMap: escolaConfig }, { merge: true });
+        
+        updateTurmas();
+        hideTable();
+    }
 };
 
 window.openStudentModal = function() {
@@ -175,23 +197,6 @@ window.confirmAddStudent = function() {
     }
 };
 
-window.deleteTurma = async function() {
-    const turmaSelect = document.getElementById('turma-select');
-    const turmaSelecionada = turmaSelect.value;
-    
-    if (!turmaSelecionada) return alert("Por favor, selecione uma turma primeiro.");
-    
-    if (confirm(`CRÍTICO: Tem certeza que deseja apagar a Turma ${turmaSelecionada}? Todos os alunos e notas vinculados serão perdidos para sempre.`)) {
-        const key = `${currentLevel}_${currentGrade}`;
-        escolaConfig[key] = escolaConfig[key].filter(t => t !== turmaSelecionada);
-        
-        await setDoc(doc(db, "config", "estrutura_escola"), { turmasMap: escolaConfig }, { merge: true });
-        
-        updateTurmas();
-        hideTable();
-    }
-};
-
 window.addActivityColumn = function() {
     const actId = `av_${Date.now()}`;
     activities.push({ id: actId, name: `Avaliação ${activities.length + 1}`, weight: 100 });
@@ -204,13 +209,13 @@ window.updateActivityName = function(id, value) {
 };
 
 window.removeStudent = function(studentId) {
-    if(confirm("Tem certeza de que quer excluir este aluno e suas respectivas notas?")) {
+    if(confirm("Tem certeza de que quer excluir este aluno e todas as suas respectivas notas?")) {
         students = students.filter(s => s.id !== studentId);
         renderTable();
     }
 };
 
-// --- RENDERIZAÇÃO DA TABELA ---
+// --- RENDERIZAÇÃO DA TABELA DINÂMICA ---
 function renderTable() {
     const headerRow = document.getElementById('table-header');
     const tbody = document.getElementById('table-body');
@@ -265,7 +270,7 @@ function renderTable() {
     });
 }
 
-// --- LÓGICA E BANCO DE DADOS (Inalterado) ---
+// --- TRAVAS DE SEGURANÇA DE ENTRADA ---
 window.updateGrade = function(studentId, activityId, value) {
     const student = students.find(s => s.id === studentId);
     if(value === "") {
@@ -294,6 +299,7 @@ window.updateRecup = function(studentId, value) {
     renderTable();
 };
 
+// --- LOGICA PEDAGÓGICA DE MÉDIAS (OPÇÃO 2) ---
 function calculateAverages(student) {
     if (activities.length === 0) return { bimestral: 0, final: 0 };
     let sum = 0, count = 0;
@@ -309,13 +315,17 @@ function calculateAverages(student) {
     const threshold = isMedio ? 60 : 6.0;
     
     let mediaFinal = mediaBimestral;
+    
+    // REGRA DA NOVA MÉDIA: (Média Bimestral + Nota da Recuperação) / 2
     if (mediaBimestral < threshold && student.recup !== null && !isNaN(student.recup)) {
         const novaMedia = (mediaBimestral + student.recup) / 2;
+        // Só altera se a nota calculada for maior que a nota antiga do bimestre
         mediaFinal = novaMedia > mediaBimestral ? novaMedia : mediaBimestral;
     }
     return { bimestral: mediaBimestral, final: mediaFinal };
 }
 
+// --- COMUNICAÇÃO INTEGRAL COM FIRESTORE DATABASE ---
 async function fetchFromDatabaseSecurely(level, grade, turma) {
     try {
         const docId = `${level}_${grade}_${turma}`;
@@ -332,7 +342,7 @@ async function fetchFromDatabaseSecurely(level, grade, turma) {
         }
     } catch (error) {
         console.error("Erro ao ler banco de dados: ", error);
-        alert("Erro ao conectar com a nuvem. Cheque sua rede.");
+        alert("Erro ao conectar com a nuvem do Firebase. Cheque sua rede.");
     }
 }
 
@@ -347,6 +357,7 @@ window.saveDataSecurely = async function() {
         const docId = `${currentLevel}_${currentGrade}_${currentTurma}`;
         const docRef = doc(db, "classes", docId);
         
+        // TRANSAÇÃO ACID: Impede concorrência indesejada e perdas de dados em salvamentos simultâneos
         await runTransaction(db, async (transaction) => {
             transaction.set(docRef, { 
                 students: students,
@@ -355,18 +366,21 @@ window.saveDataSecurely = async function() {
             }, { merge: true });
         });
         
-        alert("Sincronização concluída com sucesso! Suas notas estão salvas na Nuvem.");
+        alert("Sincronização concluída com sucesso! Suas notas estão salvas de forma segura na Nuvem.");
     } catch (error) {
         console.error("Erro na transação: ", error);
-        alert("Falha crítica ao tentar salvar. Nenhuma alteração foi perdida localmente, tente salvar de novo.");
+        alert("Falha crítica ao tentar salvar. Nenhuma alteração foi perdida localmente, tente salvar novamente.");
     } finally {
         btn.textContent = originalText;
         btn.disabled = false;
     }
 };
 
+// --- GERAÇÃO DE IMPRESSÃO (PDF) ---
 window.generateBoletimPDF = function() {
     const element = document.getElementById('grades-table').cloneNode(true);
+    
+    // Remove a coluna de ações e inputs da tabela para o layout limpo do PDF
     element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
     element.querySelectorAll('input').forEach(input => {
         const span = document.createElement('span');
