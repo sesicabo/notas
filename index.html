@@ -42,13 +42,13 @@
                 <option value="">3. Selecione a Turma...</option>
             </select>
 
-            <button id="btn-add-turma" class="btn-secondary hidden" onclick="addTurma()">+ Turma</button>
+            <button id="btn-add-turma" class="btn-secondary hidden" onclick="openTurmaModal()">+ Turma</button>
             <button id="btn-del-turma" class="btn-danger hidden" onclick="deleteTurma()">- Excluir Turma</button>
         </div>
 
         <div id="management-section" class="hidden">
             <hr style="margin: 1rem 0; border: 0; border-top: 1px solid #ccc;">
-            <button onclick="addStudent()" class="btn-secondary">+ Adicionar Aluno</button>
+            <button onclick="openStudentModal()" class="btn-secondary">+ Adicionar Aluno</button>
             <button onclick="addActivityColumn()" class="btn-secondary">+ Nova Avaliação</button>
             <button onclick="saveDataSecurely()" class="btn-success" id="btn-save">💾 Salvar Notas na Nuvem</button>
             <button onclick="generateBoletimPDF()" class="btn-primary">📄 Gerar Boletins (PDF)</button>
@@ -68,6 +68,30 @@
                 <tbody id="table-body">
                     </tbody>
             </table>
+        </div>
+    </div>
+
+    <div id="modal-turma" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3>Adicionar Nova Turma</h3>
+            <p>Digite a identificação da Turma (Ex: A, B, C, Única):</p>
+            <input type="text" id="input-turma-name" placeholder="Ex: A">
+            <div class="modal-actions">
+                <button onclick="closeModal('modal-turma')" class="btn-secondary">Cancelar</button>
+                <button onclick="confirmAddTurma()" class="btn-primary">Adicionar Turma</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-student" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3>Adicionar Novo Aluno</h3>
+            <p>Digite o nome completo do aluno:</p>
+            <input type="text" id="input-student-name" placeholder="Nome completo">
+            <div class="modal-actions">
+                <button onclick="closeModal('modal-student')" class="btn-secondary">Cancelar</button>
+                <button onclick="confirmAddStudent()" class="btn-primary">Adicionar Aluno</button>
+            </div>
         </div>
     </div>
 
