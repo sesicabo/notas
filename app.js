@@ -12,7 +12,6 @@ const firebaseConfig = {
     appId: "1:488178786002:web:7a8dd6457f5fe5d43c970b"
 };
 
-// Inicializar Aplicativo e Firestore
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -21,10 +20,10 @@ let currentLevel = '';
 let currentGrade = '';
 let currentTurma = '';
 let currentSubject = '';
-let activities = {};  
-let students = [];    
-let subjects = [];    
-let escolaConfig = {}; 
+let activities = {};
+let students = [];
+let subjects = [];
+let escolaConfig = {};
 
 const seriesMap = {
     'fund1': ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano'],
@@ -37,7 +36,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
     e.preventDefault();
     document.getElementById('login-screen').classList.remove('active');
     document.getElementById('dashboard-screen').classList.add('active');
-    
+
     try {
         const configRef = doc(db, "config", "estrutura_escola");
         const configSnap = await getDoc(configRef);
@@ -59,17 +58,17 @@ window.logout = function() {
 window.updateGrades = function() {
     currentLevel = document.getElementById('level-select').value;
     const gradeSelect = document.getElementById('grade-select');
-    
+
     gradeSelect.innerHTML = '<option value="">2. Selecione a Série...</option>';
     document.getElementById('turma-select').innerHTML = '<option value="">3. Selecione a Turma...</option>';
     document.getElementById('turma-select').disabled = true;
     document.getElementById('subject-select').innerHTML = '<option value="">4. Selecione a Disciplina...</option>';
     document.getElementById('subject-select').disabled = true;
-    
+
     hideTurmaControls();
     hideSubjectControls();
     hideTable();
-    
+
     if (currentLevel && seriesMap[currentLevel]) {
         seriesMap[currentLevel].forEach(serie => {
             const opt = document.createElement('option');
@@ -86,24 +85,24 @@ window.updateGrades = function() {
 window.updateTurmas = function() {
     currentGrade = document.getElementById('grade-select').value;
     const turmaSelect = document.getElementById('turma-select');
-    
+
     turmaSelect.innerHTML = '<option value="">3. Selecione a Turma...</option>';
     document.getElementById('subject-select').innerHTML = '<option value="">4. Selecione a Disciplina...</option>';
     document.getElementById('subject-select').disabled = true;
     hideSubjectControls();
     hideTable();
-    
+
     if (currentGrade) {
         const key = `${currentLevel}_${currentGrade}`;
         const turmasDisponiveis = escolaConfig[key] || [];
-        
+
         turmasDisponiveis.forEach(t => {
             const opt = document.createElement('option');
             opt.value = t;
             opt.textContent = `Turma ${t}`;
             turmaSelect.appendChild(opt);
         });
-        
+
         turmaSelect.disabled = false;
         showTurmaControls();
     } else {
@@ -119,7 +118,7 @@ window.loadClassData = async function() {
         hideSubjectControls();
         return;
     }
-    
+
     await fetchFromDatabaseSecurely(currentLevel, currentGrade, currentTurma);
     showSubjectControls();
     updateSubjectsDropdown();
@@ -129,7 +128,7 @@ function updateSubjectsDropdown() {
     const subSelect = document.getElementById('subject-select');
     subSelect.innerHTML = '<option value="">4. Selecione a Disciplina...</option>';
     hideTable();
-    
+
     subjects.forEach(sub => {
         const opt = document.createElement('option');
         opt.value = sub;
@@ -189,20 +188,20 @@ window.openTurmaModal = function() {
 window.confirmAddTurma = async function() {
     const nomeTurma = document.getElementById('input-turma-name').value;
     if (!nomeTurma || nomeTurma.trim() === "") return;
-    
+
     const key = `${currentLevel}_${currentGrade}`;
     if (!escolaConfig[key]) escolaConfig[key] = [];
-    
+
     const nomeFormatado = nomeTurma.trim().toUpperCase();
     if (escolaConfig[key].includes(nomeFormatado)) {
         alert("Esta turma já está cadastrada nesta série!");
         return;
     }
-    
+
     escolaConfig[key].push(nomeFormatado);
     await setDoc(doc(db, "config", "estrutura_escola"), { turmasMap: escolaConfig }, { merge: true });
-    
-    updateTurmas(); 
+
+    updateTurmas();
     document.getElementById('turma-select').value = nomeFormatado;
     loadClassData();
     closeModal('modal-turma');
@@ -212,7 +211,7 @@ window.deleteTurma = async function() {
     const turmaSelect = document.getElementById('turma-select');
     const turmaSelecionada = turmaSelect.value;
     if (!turmaSelecionada) return alert("Selecione uma turma primeiro.");
-    
+
     if (confirm(`CRÍTICO: Excluir a Turma ${turmaSelecionada} apagará permanentemente todos os diários de notas e históricos vinculados.`)) {
         const key = `${currentLevel}_${currentGrade}`;
         escolaConfig[key] = escolaConfig[key].filter(t => t !== turmaSelecionada);
@@ -231,16 +230,16 @@ window.openDisciplinaModal = function() {
 window.confirmAddDisciplina = function() {
     const nomeSub = document.getElementById('input-disciplina-name').value;
     if (!nomeSub || nomeSub.trim() === "") return;
-    
+
     const formatado = nomeSub.trim();
     if (subjects.includes(formatado)) {
         alert("Esta disciplina já existe nesta turma!");
         return;
     }
-    
+
     subjects.push(formatado);
-    activities[formatado] = []; 
-    
+    activities[formatado] = [];
+
     updateSubjectsDropdown();
     document.getElementById('subject-select').value = formatado;
     loadSubjectData();
@@ -301,9 +300,9 @@ function renderTable() {
     const tbody = document.getElementById('table-body');
     const isMedio = currentLevel === 'medio';
     const maxValue = isMedio ? 100 : 10;
-    
+
     const subActivities = activities[currentSubject] || [];
-    
+
     headerRow.innerHTML = `<th>Aluno</th>`;
     subActivities.forEach(act => {
         headerRow.innerHTML += `
@@ -325,7 +324,7 @@ function renderTable() {
     tbody.innerHTML = '';
     students.forEach(student => {
         let row = `<tr><td><strong>${student.name}</strong></td>`;
-        
+
         subActivities.forEach(act => {
             const subGrades = student.grades[currentSubject] || {};
             const val = subGrades[act.id] !== undefined ? subGrades[act.id] : '';
@@ -335,16 +334,16 @@ function renderTable() {
         const medias = calculateAverages(student, currentSubject);
         const threshold = isMedio ? 60 : 6.0;
         const needsRecup = medias.bimestral < threshold && subActivities.length > 0;
-        
+
         const recupMap = student.recup || {};
         const recupVal = recupMap[currentSubject] !== undefined && recupMap[currentSubject] !== null ? recupMap[currentSubject] : '';
 
         row += `
             <td class="readonly-cell">${medias.bimestral.toFixed(1)}${isMedio ? '%' : ''}</td>
             <td>
-                <input type="number" step="0.1" min="0" max="${maxValue}" 
-                    value="${recupVal}" 
-                    oninput="updateRecup(${student.id}, this.value)" 
+                <input type="number" step="0.1" min="0" max="${maxValue}"
+                    value="${recupVal}"
+                    oninput="updateRecup(${student.id}, this.value)"
                     ${needsRecup ? '' : 'disabled'}>
             </td>
             <td class="readonly-cell">${medias.final.toFixed(1)}${isMedio ? '%' : ''}</td>
@@ -353,7 +352,7 @@ function renderTable() {
                 <button class="btn-danger" onclick="removeStudent(${student.id})">✕</button>
             </td>
         </tr>`;
-        
+
         tbody.innerHTML += row;
     });
 }
@@ -362,7 +361,7 @@ function renderTable() {
 window.updateGrade = function(studentId, activityId, value) {
     const student = students.find(s => s.id === studentId);
     if (!student.grades[currentSubject]) student.grades[currentSubject] = {};
-    
+
     if(value === "") {
         delete student.grades[currentSubject][activityId];
     } else {
@@ -378,7 +377,7 @@ window.updateGrade = function(studentId, activityId, value) {
 window.updateRecup = function(studentId, value) {
     const student = students.find(s => s.id === studentId);
     if (!student.recup) student.recup = {};
-    
+
     if(value === "") {
         student.recup[currentSubject] = null;
     } else {
@@ -394,10 +393,10 @@ window.updateRecup = function(studentId, value) {
 function calculateAverages(student, subjectName) {
     const subActivities = activities[subjectName] || [];
     if (subActivities.length === 0) return { bimestral: 0, final: 0 };
-    
+
     let sum = 0, count = 0;
     const subGrades = student.grades[subjectName] || {};
-    
+
     subActivities.forEach(act => {
         if (subGrades[act.id] !== undefined && !isNaN(subGrades[act.id])) {
             sum += subGrades[act.id];
@@ -408,11 +407,11 @@ function calculateAverages(student, subjectName) {
     const mediaBimestral = count > 0 ? (sum / count) : 0;
     const isMedio = currentLevel === 'medio';
     const threshold = isMedio ? 60 : 6.0;
-    
+
     let mediaFinal = mediaBimestral;
     const recupMap = student.recup || {};
     const recupNota = recupMap[subjectName];
-    
+
     if (mediaBimestral < threshold && recupNota !== null && recupNota !== undefined && !isNaN(recupNota)) {
         const novaMedia = (mediaBimestral + recupNota) / 2;
         mediaFinal = novaMedia > mediaBimestral ? novaMedia : mediaBimestral;
@@ -449,19 +448,19 @@ window.saveDataSecurely = async function() {
     try {
         btn.textContent = "Sincronizando Nuvem...";
         btn.disabled = true;
-        
+
         const docId = `${currentLevel}_${currentGrade}_${currentTurma}`;
         const docRef = doc(db, "classes", docId);
-        
+
         await runTransaction(db, async (transaction) => {
-            transaction.set(docRef, { 
+            transaction.set(docRef, {
                 students: students,
                 subjects: subjects,
                 activities: activities,
                 lastUpdated: new Date().toISOString()
             }, { merge: true });
         });
-        
+
         alert("Dados salvos e sincronizados com a nuvem SESI!");
     } catch (error) {
         console.error("Erro na gravação: ", error);
@@ -472,197 +471,250 @@ window.saveDataSecurely = async function() {
     }
 };
 
-// ============================================================
-// GERAÇÃO DE PDF COM DESIGN PRESTIGE E COLUNAS DINÂMICAS
-// ============================================================
+// ================================================================
+// GERAÇÃO DE PDF — CORREÇÃO DEFINITIVA
+//
+// CAUSA DO BUG: o código anterior usava position:absolute com
+// top/left: -9999px. O html2canvas então ROLAVA o documento inteiro
+// para a coordenada (-9999,-9999) para capturar o elemento,
+// deixando a página completamente em branco.
+//
+// SOLUÇÃO: passar o HTML como STRING diretamente ao html2pdf().from().
+// Quando recebe uma string, o html2pdf cria um container interno
+// isolado, renderiza sem mexer na viewport e o destrói sozinho.
+// Nenhum appendChild/removeChild manual é necessário.
+// ================================================================
 
+// Opções html2canvas comuns — scrollX/Y zerados para evitar
+// qualquer deslocamento de viewport durante a captura.
+const _canvasOpts = {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    scrollX: 0,
+    scrollY: 0
+};
+
+// Estilos de cor para os PDFs (inline — independente do CSS externo)
+const _C = {
+    navy:    '#0B1E3D',
+    gold:    '#C9A227',
+    white:   '#FFFFFF',
+    gray:    '#F0F4F8',
+    text:    '#0D1B2A',
+    muted:   '#556070',
+    border:  '#E2E5EE',
+    green:   '#1B7A4E',
+    red:     '#B8233F'
+};
+
+// ----------------------------------------------------------------
+// BOLETIM INDIVIDUAL
+// ----------------------------------------------------------------
 window.generateIndividualPDF = function(studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
     const isMedio = currentLevel === 'medio';
     const unit = isMedio ? '%' : '';
+    const levelLabel = document.getElementById('level-select')
+        .options[document.getElementById('level-select').selectedIndex].text;
 
-    // Encontra o número máximo de avaliações entre todas as disciplinas
-    let maxActivities = 0;
+    // Calcula o número máximo de avaliações entre todas as disciplinas
+    let maxAv = 0;
     subjects.forEach(sub => {
-        if (activities[sub] && activities[sub].length > maxActivities) {
-            maxActivities = activities[sub].length;
-        }
+        if (activities[sub] && activities[sub].length > maxAv) maxAv = activities[sub].length;
     });
 
-    // Monta o cabeçalho dinâmico das colunas da tabela
-    let headersHTML = `<th style="padding: 12px; text-align: left; border: 1px solid #E2E5EE; width: 20%;">Disciplina</th>`;
-    for (let i = 0; i < maxActivities; i++) {
-        headersHTML += `<th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 10%;">Av. ${i + 1}</th>`;
+    // Cabeçalho dinâmico
+    let theadCols = `<th style="padding:10px 12px;text-align:left;border:1px solid ${_C.border};background:${_C.navy};color:#fff;font-size:12px;">Disciplina</th>`;
+    for (let i = 0; i < maxAv; i++) {
+        theadCols += `<th style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${_C.navy};color:#fff;font-size:12px;">Av. ${i+1}</th>`;
     }
-    headersHTML += `
-        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 15%;">Média Bim.</th>
-        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 15%;">Recuperação</th>
-        <th style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; width: 15%;">Média Final</th>
+    theadCols += `
+        <th style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${_C.navy};color:#fff;font-size:12px;">Média Bim.</th>
+        <th style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${_C.navy};color:#fff;font-size:12px;">Recuperação</th>
+        <th style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${_C.navy};color:#fff;font-size:12px;">Média Final</th>
     `;
 
-    let htmlContent = `
-        <div style="padding: 30px; font-family: 'DM Sans', sans-serif; color: #0D1B2A; background: #fff; width: 100%;">
-            <h2 style="text-align: center; color: #0B1E3D; font-family: 'Playfair Display', serif; margin-bottom: 5px; font-size: 24px;">BOLETIM ESCOLAR INDIVIDUAL</h2>
-            <p style="text-align: center; font-size: 13px; margin-bottom: 30px; color: #556070; text-transform: uppercase; letter-spacing: 1px;">Registro Oficial de Aproveitamento</p>
-            
-            <div style="margin-bottom: 25px; padding: 18px; background: #FAFAF6; border-left: 5px solid #C9A227; border-radius: 6px;">
-                <p style="margin: 4px 0; font-size: 16px;"><strong>Estudante:</strong> ${student.name}</p>
-                <p style="margin: 4px 0; font-size: 14px; color: #1A3A6B;"><strong>Segmento:</strong> ${document.getElementById('level-select').options[document.getElementById('level-select').selectedIndex].text}</p>
-                <p style="margin: 4px 0; font-size: 14px; color: #1A3A6B;"><strong>Série/Ano:</strong> ${currentGrade} &nbsp;&nbsp;&nbsp;&nbsp; <strong>Turma:</strong> ${currentTurma}</p>
-            </div>
-
-            <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px;">
-                <thead>
-                    <tr style="background-color: #0B1E3D; color: white;">
-                        ${headersHTML}
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    subjects.forEach(sub => {
-        const medias = calculateAverages(student, sub);
-        const recupMap = student.recup || {};
-        const recupNota = recupMap[sub] !== undefined && recupMap[sub] !== null ? recupMap[sub].toFixed(1) + unit : '-';
-        
+    // Linhas por disciplina
+    let tbodyRows = '';
+    subjects.forEach((sub, idx) => {
+        const medias    = calculateAverages(student, sub);
+        const recupMap  = student.recup || {};
+        const recupNota = (recupMap[sub] !== undefined && recupMap[sub] !== null)
+            ? recupMap[sub].toFixed(1) + unit : '-';
+        const finalColor = medias.final >= (isMedio ? 60 : 6) ? _C.green : _C.red;
+        const bg = idx % 2 === 0 ? _C.white : '#F7F9FB';
         const subActivities = activities[sub] || [];
         const subGrades = student.grades[sub] || {};
 
-        htmlContent += `
-            <tr>
-                <td style="padding: 12px; border: 1px solid #E2E5EE;"><strong>${sub}</strong></td>
-        `;
-        
-        // Preenche as colunas de atividades (Av 1, Av 2, etc)
-        for (let i = 0; i < maxActivities; i++) {
+        tbodyRows += `<tr>
+            <td style="padding:10px 12px;border:1px solid ${_C.border};background:${bg};font-weight:600;font-size:13px;">${sub}</td>`;
+
+        for (let i = 0; i < maxAv; i++) {
             if (i < subActivities.length) {
                 const actId = subActivities[i].id;
-                const gradeVal = subGrades[actId] !== undefined && subGrades[actId] !== null ? subGrades[actId] + unit : '-';
-                htmlContent += `<td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #556070;">${gradeVal}</td>`;
+                const val = subGrades[actId] !== undefined ? subGrades[actId].toFixed(1) + unit : '-';
+                tbodyRows += `<td style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${bg};font-size:12px;">${val}</td>`;
             } else {
-                htmlContent += `<td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #E2E5EE;">-</td>`;
+                tbodyRows += `<td style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${bg};font-size:12px;color:${_C.border};">-</td>`;
             }
         }
 
-        htmlContent += `
-                <td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #556070;">${medias.bimestral.toFixed(1)}${unit}</td>
-                <td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; color: #556070;">${recupNota}</td>
-                <td style="padding: 12px; text-align: center; border: 1px solid #E2E5EE; background: #F0F4F8; font-weight: bold; color: #0B1E3D;">${medias.final.toFixed(1)}${unit}</td>
-            </tr>
-        `;
+        tbodyRows += `
+            <td style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${_C.gray};font-size:12px;font-weight:600;color:${_C.navy};">${medias.bimestral.toFixed(1)}${unit}</td>
+            <td style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${bg};font-size:12px;color:${_C.muted};">${recupNota}</td>
+            <td style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${_C.gray};font-size:13px;font-weight:700;color:${finalColor};">${medias.final.toFixed(1)}${unit}</td>
+        </tr>`;
     });
 
-    if(subjects.length === 0) {
-        htmlContent += `<tr><td colspan="${maxActivities + 4}" style="padding: 20px; text-align: center; color: #8A95A0;">Nenhuma disciplina vinculada a esta pauta.</td></tr>`;
+    if (subjects.length === 0) {
+        const cols = maxAv + 4;
+        tbodyRows = `<tr><td colspan="${cols}" style="padding:20px;text-align:center;color:${_C.muted};border:1px solid ${_C.border};">Nenhuma disciplina vinculada.</td></tr>`;
     }
 
-    htmlContent += `
-                </tbody>
-            </table>
-            <div style="margin-top: 50px; text-align: center; font-size: 11px; color: #8A95A0; border-top: 1px solid #E2E5EE; padding-top: 15px;">
-                <p>SESI Cabo de Santo Agostinho • Documento gerado digitalmente via Sistema de Gestão Acadêmica.</p>
-            </div>
+    // HTML completo como string — NUNCA é inserido no DOM manualmente
+    const htmlString = `
+    <div style="font-family:Arial,sans-serif;color:${_C.text};background:#fff;padding:0;margin:0;">
+
+        <div style="background:${_C.navy};padding:20px 28px;border-bottom:4px solid ${_C.gold};">
+            <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;">SESI Cabo de Santo Agostinho</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:1.5px;">Boletim Escolar Individual</div>
         </div>
-    `;
 
-    const containerDiv = document.createElement('div');
-    containerDiv.innerHTML = htmlContent;
-    
-    containerDiv.style.position = 'absolute';
-    containerDiv.style.left = '-9999px';
-    containerDiv.style.top = '-9999px';
-    containerDiv.style.width = '794px'; 
-    document.body.appendChild(containerDiv);
+        <div style="padding:16px 28px;background:#F7F9FB;border-bottom:1px solid ${_C.border};">
+            <table style="width:100%;border-collapse:collapse;">
+                <tr>
+                    <td style="padding:6px 0;width:50%;vertical-align:top;">
+                        <div style="font-size:10px;color:${_C.muted};text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;">Estudante</div>
+                        <div style="font-size:15px;font-weight:700;color:${_C.navy};">${student.name}</div>
+                    </td>
+                    <td style="padding:6px 0;width:25%;vertical-align:top;">
+                        <div style="font-size:10px;color:${_C.muted};text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;">Série / Turma</div>
+                        <div style="font-size:13px;font-weight:600;">${currentGrade} — Turma ${currentTurma}</div>
+                    </td>
+                    <td style="padding:6px 0;width:25%;vertical-align:top;">
+                        <div style="font-size:10px;color:${_C.muted};text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;">Segmento</div>
+                        <div style="font-size:13px;font-weight:600;">${levelLabel}</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
 
-    const opt = {
-        margin:       10,
-        filename:     `Boletim_${student.name.replace(/\s+/g, '_')}.pdf`,
-        image:        { type: 'jpeg', quality: 0.99 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+        <div style="padding:20px 28px;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead><tr>${theadCols}</tr></thead>
+                <tbody>${tbodyRows}</tbody>
+            </table>
+        </div>
 
-    window.html2pdf().set(opt).from(containerDiv).save().then(() => {
-        document.body.removeChild(containerDiv); 
-    }).catch(err => {
-        console.error("Erro no PDF:", err);
-        document.body.removeChild(containerDiv);
-    });
+        <div style="padding:14px 28px;border-top:1px solid ${_C.border};text-align:center;">
+            <p style="font-size:10px;color:${_C.muted};margin:0;">Documento gerado digitalmente — Sistema de Gestão Acadêmica SESI-PE</p>
+        </div>
+    </div>`;
+
+    // ✅ CORREÇÃO: from(string) — html2pdf gerencia o DOM internamente.
+    // Não há position:absolute nem appendChild manual. Sem risco de branco.
+    window.html2pdf().set({
+        margin:      [8, 8, 8, 8],
+        filename:    `Boletim_${student.name.replace(/\s+/g, '_')}.pdf`,
+        image:       { type: 'jpeg', quality: 0.99 },
+        html2canvas: _canvasOpts,
+        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(htmlString).save();
 };
 
+// ----------------------------------------------------------------
+// PAUTA GERAL DA TURMA
+// ----------------------------------------------------------------
 window.generateBoletimCompletoPDF = function() {
-    const element = document.getElementById('grades-table').cloneNode(true);
-    
-    element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
-    
-    element.querySelectorAll('input').forEach(input => {
-        const span = document.createElement('span');
-        span.textContent = input.value || "-";
-        span.style.fontWeight = 'bold';
-        span.style.color = '#0B1E3D';
-        input.parentNode.replaceChild(span, input);
+    const isMedio = currentLevel === 'medio';
+    const unit = isMedio ? '%' : '';
+    const subActivities = activities[currentSubject] || [];
+
+    // Cabeçalho das colunas de avaliação
+    let avCols = '';
+    subActivities.forEach(act => {
+        avCols += `<th style="padding:10px 12px;text-align:center;border:1px solid ${_C.navy};background:${_C.navy};color:#fff;font-size:11px;white-space:nowrap;">${act.name}</th>`;
     });
 
-    element.style.width = '100%';
-    element.style.borderCollapse = 'collapse';
-    element.style.fontFamily = "'DM Sans', sans-serif";
-    element.style.fontSize = '14px';
+    // Linhas por aluno
+    let tbodyRows = '';
+    students.forEach((student, idx) => {
+        const medias    = calculateAverages(student, currentSubject);
+        const recupMap  = student.recup || {};
+        const recupNota = (recupMap[currentSubject] !== undefined && recupMap[currentSubject] !== null)
+            ? recupMap[currentSubject].toFixed(1) + unit : '-';
+        const finalColor = medias.final >= (isMedio ? 60 : 6) ? _C.green : _C.red;
+        const bg = idx % 2 === 0 ? _C.white : '#F7F9FB';
+        const subGrades = student.grades[currentSubject] || {};
 
-    element.querySelectorAll('th').forEach(th => {
-        th.style.backgroundColor = '#0B1E3D';
-        th.style.color = 'white';
-        th.style.padding = '12px';
-        th.style.textAlign = 'left';
-        th.style.border = '1px solid #E2E5EE';
+        let gradeCells = '';
+        subActivities.forEach(act => {
+            const val = subGrades[act.id] !== undefined ? subGrades[act.id].toFixed(1) + unit : '-';
+            gradeCells += `<td style="padding:9px 10px;text-align:center;border:1px solid ${_C.border};background:${bg};font-size:12px;">${val}</td>`;
+        });
+
+        tbodyRows += `<tr>
+            <td style="padding:9px 12px;border:1px solid ${_C.border};border-left:3px solid ${_C.gold};background:${bg};font-size:12px;font-weight:600;">${student.name}</td>
+            ${gradeCells}
+            <td style="padding:9px 10px;text-align:center;border:1px solid ${_C.border};background:${_C.gray};font-size:12px;font-weight:600;color:${_C.navy};">${medias.bimestral.toFixed(1)}${unit}</td>
+            <td style="padding:9px 10px;text-align:center;border:1px solid ${_C.border};background:${bg};font-size:12px;color:${_C.muted};">${recupNota}</td>
+            <td style="padding:9px 10px;text-align:center;border:1px solid ${_C.border};background:${_C.gray};font-size:13px;font-weight:700;color:${finalColor};">${medias.final.toFixed(1)}${unit}</td>
+        </tr>`;
     });
 
-    element.querySelectorAll('td').forEach(td => {
-        td.style.padding = '12px';
-        td.style.border = '1px solid #E2E5EE';
-        td.style.color = '#0D1B2A';
-    });
+    if (students.length === 0) {
+        const cols = subActivities.length + 4;
+        tbodyRows = `<tr><td colspan="${cols}" style="padding:20px;text-align:center;color:${_C.muted};border:1px solid ${_C.border};">Nenhum aluno cadastrado.</td></tr>`;
+    }
 
-    element.querySelectorAll('.readonly-cell').forEach(cell => {
-        cell.style.backgroundColor = '#F0F4F8';
-        cell.style.fontWeight = 'bold';
-        cell.style.color = '#0B1E3D';
-    });
+    // HTML completo como string
+    const htmlString = `
+    <div style="font-family:Arial,sans-serif;color:${_C.text};background:#fff;padding:0;margin:0;">
 
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.top = '-9999px';
-    container.style.width = '1122px'; 
-    container.style.padding = '20px';
-    container.style.background = '#fff';
-    
-    const title = document.createElement('h2');
-    title.innerHTML = `Pauta Acadêmica de Classe <br><span style="font-size:14px; color:#556070; font-family: 'DM Sans', sans-serif; font-weight: normal; letter-spacing: 0.5px;">Série: ${currentGrade} | Turma: ${currentTurma} | Disciplina: ${currentSubject}</span>`;
-    title.style.color = '#0B1E3D';
-    title.style.fontFamily = "'Playfair Display', serif";
-    title.style.marginBottom = '25px';
-    title.style.borderBottom = '2px solid #C9A227';
-    title.style.paddingBottom = '10px';
-    
-    container.appendChild(title);
-    container.appendChild(element); 
-    
-    document.body.appendChild(container); 
+        <div style="background:${_C.navy};padding:16px 22px;border-bottom:4px solid ${_C.gold};">
+            <table style="width:100%;border-collapse:collapse;">
+                <tr>
+                    <td style="vertical-align:middle;">
+                        <div style="font-size:17px;font-weight:700;color:#fff;">SESI Cabo de Santo Agostinho</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1.5px;margin-top:3px;">Pauta Geral de Notas</div>
+                    </td>
+                    <td style="text-align:right;vertical-align:middle;">
+                        <div style="font-size:14px;font-weight:600;color:#fff;">${currentSubject}</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px;">${currentGrade} — Turma ${currentTurma}</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
 
-    const opt = {
-        margin:       10,
-        filename:     `Pauta_Geral_${currentGrade}_${currentTurma}_${currentSubject}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    };
+        <div style="padding:18px 22px;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="padding:10px 12px;text-align:left;border:1px solid ${_C.navy};border-left:3px solid ${_C.gold};background:${_C.navy};color:#fff;font-size:11px;white-space:nowrap;">Estudante</th>
+                        ${avCols}
+                        <th style="padding:10px 12px;text-align:center;border:1px solid ${_C.navy};background:${_C.navy};color:#fff;font-size:11px;white-space:nowrap;">Média Bim.</th>
+                        <th style="padding:10px 12px;text-align:center;border:1px solid ${_C.navy};background:${_C.navy};color:#fff;font-size:11px;white-space:nowrap;">Recuperação</th>
+                        <th style="padding:10px 12px;text-align:center;border:1px solid ${_C.navy};background:${_C.navy};color:#fff;font-size:11px;white-space:nowrap;">Média Final</th>
+                    </tr>
+                </thead>
+                <tbody>${tbodyRows}</tbody>
+            </table>
+        </div>
 
-    window.html2pdf().set(opt).from(container).save().then(() => {
-        document.body.removeChild(container);
-    }).catch(err => {
-        console.error("Erro no PDF:", err);
-        document.body.removeChild(container);
-    });
+        <div style="padding:10px 22px;border-top:1px solid ${_C.border};text-align:center;">
+            <p style="font-size:10px;color:${_C.muted};margin:0;">Documento gerado digitalmente — Sistema de Gestão Acadêmica SESI-PE</p>
+        </div>
+    </div>`;
+
+    // ✅ CORREÇÃO: from(string) — html2pdf gerencia o DOM internamente.
+    window.html2pdf().set({
+        margin:      [6, 6, 6, 6],
+        filename:    `Pauta_Geral_${currentGrade}_${currentTurma}_${currentSubject}.pdf`,
+        image:       { type: 'jpeg', quality: 0.98 },
+        html2canvas: _canvasOpts,
+        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    }).from(htmlString).save();
 };
