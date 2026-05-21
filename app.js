@@ -1,8 +1,6 @@
-// --- IMPORTAÇÕES DO FIREBASE (Via CDN para uso direto no navegador) ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, doc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// --- CONFIGURAÇÃO DO FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyCVv-O51F9iZDSXKzbINQUFAb-ZlFKlFWM",
     authDomain: "platnota2b.firebaseapp.com",
@@ -12,15 +10,16 @@ const firebaseConfig = {
     appId: "1:488178786002:web:7a8dd6457f5fe5d43c970b"
 };
 
-// Inicializar Aplicativo e Banco de Dados
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// --- ESTADOS DA APLICAÇÃO ---
+// ESTADOS DA APLICAÇÃO
 let currentLevel = '';
 let currentGrade = '';
+let currentTurma = '';
 let activities = []; 
 let students = []; 
+let escolaConfig = {}; // Armazena a estrutura de turmas salva no Firebase
 
 const seriesMap = {
     'fund1': ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano'],
@@ -29,24 +28,39 @@ const seriesMap = {
 };
 
 // --- AUTENTICAÇÃO ---
-document.getElementById('login-form').addEventListener('submit', function(e) {
+document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     document.getElementById('login-screen').classList.remove('active');
     document.getElementById('dashboard-screen').classList.add('active');
+    
+    // Ao logar, busca a estrutura de turmas da escola
+    try {
+        const configRef = doc(db, "config", "estrutura_escola");
+        const configSnap = await getDoc(configRef);
+        if (configSnap.exists()) {
+            escolaConfig = configSnap.data().turmasMap || {};
+        }
+    } catch(err) {
+        console.warn("Criando estrutura inicial do banco de dados...");
+    }
 });
 
 window.logout = function() {
     document.getElementById('dashboard-screen').classList.remove('active');
     document.getElementById('login-screen').classList.add('active');
+    hideTable();
 };
 
 // --- NAVEGAÇÃO E SELEÇÃO ---
 window.updateGrades = function() {
-    const levelSelect = document.getElementById('level-select');
+    currentLevel = document.getElementById('level-select').value;
     const gradeSelect = document.getElementById('grade-select');
     
-    currentLevel = levelSelect.value;
-    gradeSelect.innerHTML = '<option value="">Selecione a Série...</option>';
+    gradeSelect.innerHTML = '<option value="">2. Selecione a Série...</option>';
+    document.getElementById('turma-select').innerHTML = '<option value="">3. Selecione a Turma...</option>';
+    document.getElementById('turma-select').disabled = true;
+    hideTurmaControls();
+    hideTable();
     
     if (currentLevel && seriesMap[currentLevel]) {
         seriesMap[currentLevel].forEach(serie => {
@@ -58,35 +72,105 @@ window.updateGrades = function() {
         gradeSelect.disabled = false;
     } else {
         gradeSelect.disabled = true;
+    }
+};
+
+window.updateTurmas = function() {
+    currentGrade = document.getElementById('grade-select').value;
+    const turmaSelect = document.getElementById('turma-select');
+    
+    turmaSelect.innerHTML = '<option value="">3. Selecione a Turma...</option>';
+    hideTable();
+    
+    if (currentGrade) {
+        const key = `${currentLevel}_${currentGrade}`;
+        const turmasDisponiveis = escolaConfig[key] || [];
+        
+        turmasDisponiveis.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = `Turma ${t}`;
+            turmaSelect.appendChild(opt);
+        });
+        
+        turmaSelect.disabled = false;
+        showTurmaControls();
+    } else {
+        turmaSelect.disabled = true;
+        hideTurmaControls();
+    }
+};
+
+window.addTurma = async function() {
+    const nomeTurma = prompt("Digite a identificação da Turma (Ex: A, B, Única):");
+    if (!nomeTurma || nomeTurma.trim() === "") return;
+    
+    const key = `${currentLevel}_${currentGrade}`;
+    if (!escolaConfig[key]) escolaConfig[key] = [];
+    
+    if (escolaConfig[key].includes(nomeTurma.toUpperCase())) {
+        alert("Essa turma já existe nesta série!");
+        return;
+    }
+    
+    escolaConfig[key].push(nomeTurma.toUpperCase());
+    
+    // Salva a nova turma na estrutura do Firebase
+    await setDoc(doc(db, "config", "estrutura_escola"), { turmasMap: escolaConfig }, { merge: true });
+    
+    updateTurmas(); // Atualiza o dropdown
+    document.getElementById('turma-select').value = nomeTurma.toUpperCase();
+    loadClassData();
+};
+
+window.deleteTurma = async function() {
+    const turmaSelect = document.getElementById('turma-select');
+    const turmaSelecionada = turmaSelect.value;
+    
+    if (!turmaSelecionada) return alert("Selecione uma turma para excluir.");
+    
+    if (confirm(`Atenção: Tem certeza que deseja excluir a Turma ${turmaSelecionada}? Todos os dados dos alunos desta turma serão perdidos permanentemente.`)) {
+        const key = `${currentLevel}_${currentGrade}`;
+        escolaConfig[key] = escolaConfig[key].filter(t => t !== turmaSelecionada);
+        
+        await setDoc(doc(db, "config", "estrutura_escola"), { turmasMap: escolaConfig }, { merge: true });
+        
+        updateTurmas();
         hideTable();
     }
 };
 
 window.loadClassData = async function() {
-    const gradeSelect = document.getElementById('grade-select');
-    currentGrade = gradeSelect.value;
-
-    if (!currentGrade) {
+    currentTurma = document.getElementById('turma-select').value;
+    if (!currentTurma) {
         hideTable();
         return;
     }
-
-    await fetchFromDatabaseSecurely(currentLevel, currentGrade);
-    
+    await fetchFromDatabaseSecurely(currentLevel, currentGrade, currentTurma);
     document.getElementById('management-section').classList.remove('hidden');
     document.getElementById('table-container').classList.remove('hidden');
-    
     renderTable();
 };
+
+function showTurmaControls() {
+    document.getElementById('btn-add-turma').classList.remove('hidden');
+    document.getElementById('btn-del-turma').classList.remove('hidden');
+}
+
+function hideTurmaControls() {
+    document.getElementById('btn-add-turma').classList.add('hidden');
+    document.getElementById('btn-del-turma').classList.add('hidden');
+}
 
 function hideTable() {
     document.getElementById('management-section').classList.add('hidden');
     document.getElementById('table-container').classList.add('hidden');
 }
 
-// --- DINÂMICA DA TABELA ---
+// --- DINÂMICA DA TABELA E NOTAS ---
 window.addActivityColumn = function() {
     const actId = `av_${Date.now()}`;
+    // Se for médio, peso padrão 100%. Se for fundamental, não tem peso percentual visível na regra de negócio atual, mas mantemos o objeto.
     activities.push({ id: actId, name: `Avaliação ${activities.length + 1}`, weight: 100 });
     renderTable();
 };
@@ -94,11 +178,6 @@ window.addActivityColumn = function() {
 window.updateActivityName = function(id, value) {
     const act = activities.find(a => a.id === id);
     if(act) act.name = value;
-};
-
-window.updateActivityWeight = function(id, value) {
-    const act = activities.find(a => a.id === id);
-    if(act) act.weight = parseFloat(value) || 0;
 };
 
 window.addStudent = function() {
@@ -110,7 +189,7 @@ window.addStudent = function() {
 };
 
 window.removeStudent = function(studentId) {
-    if(confirm("Tem certeza que deseja excluir este aluno? Os dados serão perdidos e a ação afetará o boletim do aluno.")) {
+    if(confirm("Tem certeza que deseja excluir este aluno?")) {
         students = students.filter(s => s.id !== studentId);
         renderTable();
     }
@@ -119,6 +198,8 @@ window.removeStudent = function(studentId) {
 function renderTable() {
     const headerRow = document.getElementById('table-header');
     const tbody = document.getElementById('table-body');
+    const isMedio = currentLevel === 'medio';
+    const maxValue = isMedio ? 100 : 10;
     
     headerRow.innerHTML = `<th>Aluno</th>`;
     
@@ -127,7 +208,7 @@ function renderTable() {
             <th class="activity-header">
                 <input type="text" value="${act.name}" onchange="updateActivityName('${act.id}', this.value)" placeholder="Nome">
                 <br>
-                <input type="number" value="${act.weight}" onchange="updateActivityWeight('${act.id}', this.value)" placeholder="Peso %" min="0" max="100"> %
+                <span style="font-size: 12px; font-weight: normal;">(Máx: ${maxValue})</span>
             </th>
         `;
     });
@@ -145,16 +226,17 @@ function renderTable() {
         
         activities.forEach(act => {
             const val = student.grades[act.id] !== undefined ? student.grades[act.id] : '';
-            row += `<td><input type="number" step="0.1" min="0" max="100" value="${val}" oninput="updateGrade(${student.id}, '${act.id}', this.value)"></td>`;
+            row += `<td><input type="number" step="0.1" min="0" max="${maxValue}" value="${val}" oninput="updateGrade(${student.id}, '${act.id}', this.value)"></td>`;
         });
 
         const medias = calculateAverages(student);
-        const needsRecup = medias.bimestral < 60 && activities.length > 0;
+        const threshold = isMedio ? 60 : 6.0;
+        const needsRecup = medias.bimestral < threshold && activities.length > 0;
 
         row += `
             <td class="readonly-cell">${medias.bimestral.toFixed(1)}</td>
             <td>
-                <input type="number" step="0.1" min="0" max="100" 
+                <input type="number" step="0.1" min="0" max="${maxValue}" 
                     value="${student.recup !== null ? student.recup : ''}" 
                     oninput="updateRecup(${student.id}, this.value)" 
                     ${needsRecup ? '' : 'disabled'}>
@@ -167,20 +249,31 @@ function renderTable() {
     });
 }
 
-// --- LÓGICA MATEMÁTICA ---
+// --- LÓGICA DE CÁLCULO ESPECÍFICA POR NÍVEL ---
 window.updateGrade = function(studentId, activityId, value) {
     const student = students.find(s => s.id === studentId);
     if(value === "") {
         delete student.grades[activityId];
     } else {
-        student.grades[activityId] = parseFloat(value);
+        // Trava de segurança para impedir notas acima do limite
+        const max = currentLevel === 'medio' ? 100 : 10;
+        let numVal = parseFloat(value);
+        if (numVal > max) numVal = max;
+        student.grades[activityId] = numVal;
     }
     renderTable();
 };
 
 window.updateRecup = function(studentId, value) {
     const student = students.find(s => s.id === studentId);
-    student.recup = value !== '' ? parseFloat(value) : null;
+    if(value === "") {
+        student.recup = null;
+    } else {
+        const max = currentLevel === 'medio' ? 100 : 10;
+        let numVal = parseFloat(value);
+        if (numVal > max) numVal = max;
+        student.recup = numVal;
+    }
     renderTable();
 };
 
@@ -197,22 +290,28 @@ function calculateAverages(student) {
         }
     });
 
+    // Média Aritmética Simples
     const mediaBimestral = count > 0 ? (sum / count) : 0;
     
+    // Regra de Aprovação e Recuperação baseada no Nível
+    const isMedio = currentLevel === 'medio';
+    const threshold = isMedio ? 60 : 6.0;
+    
     let mediaFinal = mediaBimestral;
-    if (mediaBimestral < 60 && student.recup !== null && !isNaN(student.recup)) {
+    if (mediaBimestral < threshold && student.recup !== null && !isNaN(student.recup)) {
+        // A recuperação substitui a nota bimestral se for maior
         mediaFinal = student.recup > mediaBimestral ? student.recup : mediaBimestral;
     }
 
     return { bimestral: mediaBimestral, final: mediaFinal };
 }
 
-// --- BANCO DE DADOS FIREBASE (SEGURO E CONCORRENTE) ---
-async function fetchFromDatabaseSecurely(level, grade) {
-    console.log(`Buscando dados seguros na nuvem para ${grade}...`);
-    
+// --- BANCO DE DADOS FIREBASE ---
+async function fetchFromDatabaseSecurely(level, grade, turma) {
+    console.log(`Buscando turma ${turma} do ${grade} (${level})...`);
     try {
-        const docRef = doc(db, "classes", `${level}_${grade}`);
+        const docId = `${level}_${grade}_${turma}`;
+        const docRef = doc(db, "classes", docId);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
@@ -234,12 +333,12 @@ window.saveDataSecurely = async function() {
     const originalText = btn.textContent;
     
     try {
-        btn.textContent = "Salvando na Nuvem...";
+        btn.textContent = "Salvando...";
         btn.disabled = true;
         
-        const docRef = doc(db, "classes", `${currentLevel}_${currentGrade}`);
+        const docId = `${currentLevel}_${currentGrade}_${currentTurma}`;
+        const docRef = doc(db, "classes", docId);
         
-        // TRANSAÇÃO ACID: Evita colisão se dois professores salvarem juntos
         await runTransaction(db, async (transaction) => {
             transaction.set(docRef, { 
                 students: students,
@@ -248,10 +347,10 @@ window.saveDataSecurely = async function() {
             }, { merge: true });
         });
         
-        alert("Notas salvas e protegidas na Nuvem com sucesso!");
+        alert("Notas salvas e protegidas na Nuvem!");
     } catch (error) {
         console.error("Erro na transação: ", error);
-        alert("Erro de conexão com o banco de dados. Nenhuma nota foi perdida, aguarde um momento e tente novamente.");
+        alert("Erro de conexão com o banco. Aguarde um momento e tente novamente.");
     } finally {
         btn.textContent = originalText;
         btn.disabled = false;
@@ -262,7 +361,6 @@ window.saveDataSecurely = async function() {
 window.generateBoletimPDF = function() {
     const element = document.getElementById('grades-table').cloneNode(true);
     
-    // Remove a coluna de ações e inputs, transformando em documento estático 
     element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
     element.querySelectorAll('input').forEach(input => {
         const span = document.createElement('span');
@@ -272,7 +370,7 @@ window.generateBoletimPDF = function() {
 
     const opt = {
         margin:       10,
-        filename:     `Boletim_${currentGrade.replace(' ', '_')}.pdf`,
+        filename:     `Boletim_${currentGrade}_Turma_${currentTurma}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
