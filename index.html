@@ -5,12 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Gestão Acadêmica - Diário Seguro</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Biblioteca para geração do PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
-    <!-- TELA DE LOGIN -->
     <div id="login-screen" class="screen active">
         <div class="login-box">
             <h2>Acesso do Professor</h2>
@@ -22,40 +20,45 @@
         </div>
     </div>
 
-    <!-- TELA DE SELEÇÃO E GESTÃO -->
     <div id="dashboard-screen" class="screen">
         <header>
-            <h2>Painel de Turmas</h2>
+            <h2>Painel Acadêmico</h2>
             <button onclick="logout()" class="btn-danger">Sair</button>
         </header>
         
         <div class="controls-section">
             <select id="level-select" onchange="updateGrades()">
-                <option value="">Selecione o Nível...</option>
-                <option value="fund1">Ensino Fundamental I</option>
-                <option value="fund2">Ensino Fundamental II</option>
-                <option value="medio">Ensino Médio</option>
+                <option value="">1. Selecione o Nível...</option>
+                <option value="fund1">Ensino Fundamental I (0 a 10)</option>
+                <option value="fund2">Ensino Fundamental II (0 a 10)</option>
+                <option value="medio">Ensino Médio (0 a 100%)</option>
             </select>
 
-            <select id="grade-select" disabled onchange="loadClassData()">
-                <option value="">Selecione a Série...</option>
+            <select id="grade-select" disabled onchange="updateTurmas()">
+                <option value="">2. Selecione a Série...</option>
             </select>
+
+            <select id="turma-select" disabled onchange="loadClassData()">
+                <option value="">3. Selecione a Turma...</option>
+            </select>
+
+            <button id="btn-add-turma" class="btn-secondary hidden" onclick="addTurma()">+ Turma</button>
+            <button id="btn-del-turma" class="btn-danger hidden" onclick="deleteTurma()">- Excluir Turma</button>
         </div>
 
         <div id="management-section" class="hidden">
+            <hr style="margin: 1rem 0; border: 0; border-top: 1px solid #ccc;">
             <button onclick="addStudent()" class="btn-secondary">+ Adicionar Aluno</button>
             <button onclick="addActivityColumn()" class="btn-secondary">+ Nova Avaliação</button>
             <button onclick="saveDataSecurely()" class="btn-success" id="btn-save">💾 Salvar Notas na Nuvem</button>
             <button onclick="generateBoletimPDF()" class="btn-primary">📄 Gerar Boletins (PDF)</button>
         </div>
 
-        <!-- TABELA DE NOTAS -->
         <div class="table-container hidden" id="table-container">
             <table id="grades-table">
                 <thead>
                     <tr id="table-header">
                         <th>Aluno</th>
-                        <!-- Colunas dinâmicas entrarão aqui -->
                         <th>Média Bimestral</th>
                         <th>Recuperação</th>
                         <th>Média Final</th>
@@ -63,13 +66,11 @@
                     </tr>
                 </thead>
                 <tbody id="table-body">
-                    <!-- Linhas de alunos -->
-                </tbody>
+                    </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Importante: type="module" ativado -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
