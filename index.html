@@ -11,13 +11,9 @@
 </head>
 <body>
 
-    <!-- ======================================================
-         TELA DE LOGIN
-         ====================================================== -->
     <div id="login-screen" class="screen active">
         <div class="login-card">
 
-            <!-- Painel de Marca -->
             <div class="login-brand">
                 <div class="brand-logo">
                     <div class="brand-emblem">🎓</div>
@@ -38,7 +34,6 @@
                 </div>
             </div>
 
-            <!-- Formulário -->
             <div class="login-form-section">
                 <h2>Acesso ao Sistema</h2>
                 <p class="form-subtitle">Insira suas credenciais institucionais para continuar</p>
@@ -60,12 +55,8 @@
     </div>
 
 
-    <!-- ======================================================
-         DASHBOARD
-         ====================================================== -->
     <div id="dashboard-screen" class="screen">
 
-        <!-- Topbar fixa -->
         <header class="topbar">
             <div class="topbar-brand">
                 <div class="topbar-emblem">🎓</div>
@@ -82,7 +73,13 @@
 
         <div class="dashboard-content">
 
-            <!-- Cabeçalho da Página -->
+            <div class="alert-banner compatibility-alert">
+                <span class="alert-icon">🌐</span>
+                <div class="alert-text">
+                    <strong>Recomendação de Navegador:</strong> Para garantir a emissão correta dos boletins e pautas em PDF sem bloqueios de segurança do sistema, utilize preferencialmente o navegador <strong>Google Chrome</strong>.
+                </div>
+            </div>
+
             <div class="page-header">
                 <div class="page-header-left">
                     <h2>Painel Acadêmico</h2>
@@ -96,7 +93,6 @@
                 </div>
             </div>
 
-            <!-- Seletor de Turma/Disciplina -->
             <div class="selector-card">
                 <div class="selector-card-title">📍 Seleção de Contexto</div>
                 <div class="controls-section">
@@ -128,15 +124,20 @@
                 </div>
             </div>
 
-            <!-- Ações de Gestão da Turma -->
             <div id="management-section" class="hidden">
+                <div class="alert-banner save-reminder">
+                    <span class="alert-icon">⚠️</span>
+                    <div class="alert-text">
+                        <strong>Lembrete de Segurança:</strong> Certifique-se de clicar no botão <strong>"Salvar na Nuvem"</strong> após alterar ou lançar as notas de cada atividade para consolidar o registro definitivo no banco de dados.
+                    </div>
+                </div>
+
                 <button onclick="openStudentModal()" class="btn-secondary">＋ Aluno</button>
                 <button onclick="addActivityColumn()" class="btn-outline-navy">＋ Nova Avaliação</button>
                 <button onclick="saveDataSecurely()" class="btn-success" id="btn-save">💾 Salvar na Nuvem</button>
                 <button onclick="generateBoletimCompletoPDF()" class="btn-primary">📄 Pauta Geral (PDF)</button>
             </div>
 
-            <!-- Tabela de Notas -->
             <div class="table-container hidden" id="table-container">
                 <table id="grades-table">
                     <thead>
@@ -153,16 +154,7 @@
                 </table>
             </div>
 
-        </div><!-- /dashboard-content -->
-    </div><!-- /dashboard-screen -->
-
-
-    <!-- ======================================================
-         MODAIS
-         ====================================================== -->
-
-    <!-- Modal: Nova Turma -->
-    <div id="modal-turma" class="modal-overlay hidden">
+        </div></div><div id="modal-turma" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-header-icon">🏫</div>
@@ -179,7 +171,6 @@
         </div>
     </div>
 
-    <!-- Modal: Nova Disciplina -->
     <div id="modal-disciplina" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
@@ -197,7 +188,6 @@
         </div>
     </div>
 
-    <!-- Modal: Novo Aluno -->
     <div id="modal-student" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
