@@ -13,13 +13,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ESTADOS DA APLICAÇÃO
+// --- ESTADOS DA APLICAÇÃO ---
 let currentLevel = '';
 let currentGrade = '';
 let currentTurma = '';
 let activities = []; 
 let students = []; 
-let escolaConfig = {}; // Armazena a estrutura de turmas salva no Firebase
+let escolaConfig = {}; 
 
 const seriesMap = {
     'fund1': ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano'],
@@ -33,7 +33,6 @@ document.getElementById('login-form').addEventListener('submit', async function(
     document.getElementById('login-screen').classList.remove('active');
     document.getElementById('dashboard-screen').classList.add('active');
     
-    // Ao logar, busca a estrutura de turmas da escola
     try {
         const configRef = doc(db, "config", "estrutura_escola");
         const configSnap = await getDoc(configRef);
@@ -41,7 +40,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
             escolaConfig = configSnap.data().turmasMap || {};
         }
     } catch(err) {
-        console.warn("Criando estrutura inicial do banco de dados...");
+        console.warn("Inicializando estrutura do banco de dados...");
     }
 });
 
@@ -101,45 +100,6 @@ window.updateTurmas = function() {
     }
 };
 
-window.addTurma = async function() {
-    const nomeTurma = prompt("Digite a identificação da Turma (Ex: A, B, Única):");
-    if (!nomeTurma || nomeTurma.trim() === "") return;
-    
-    const key = `${currentLevel}_${currentGrade}`;
-    if (!escolaConfig[key]) escolaConfig[key] = [];
-    
-    if (escolaConfig[key].includes(nomeTurma.toUpperCase())) {
-        alert("Essa turma já existe nesta série!");
-        return;
-    }
-    
-    escolaConfig[key].push(nomeTurma.toUpperCase());
-    
-    // Salva a nova turma na estrutura do Firebase
-    await setDoc(doc(db, "config", "estrutura_escola"), { turmasMap: escolaConfig }, { merge: true });
-    
-    updateTurmas(); // Atualiza o dropdown
-    document.getElementById('turma-select').value = nomeTurma.toUpperCase();
-    loadClassData();
-};
-
-window.deleteTurma = async function() {
-    const turmaSelect = document.getElementById('turma-select');
-    const turmaSelecionada = turmaSelect.value;
-    
-    if (!turmaSelecionada) return alert("Selecione uma turma para excluir.");
-    
-    if (confirm(`Atenção: Tem certeza que deseja excluir a Turma ${turmaSelecionada}? Todos os dados dos alunos desta turma serão perdidos permanentemente.`)) {
-        const key = `${currentLevel}_${currentGrade}`;
-        escolaConfig[key] = escolaConfig[key].filter(t => t !== turmaSelecionada);
-        
-        await setDoc(doc(db, "config", "estrutura_escola"), { turmasMap: escolaConfig }, { merge: true });
-        
-        updateTurmas();
-        hideTable();
-    }
-};
-
 window.loadClassData = async function() {
     currentTurma = document.getElementById('turma-select').value;
     if (!currentTurma) {
@@ -167,10 +127,73 @@ function hideTable() {
     document.getElementById('table-container').classList.add('hidden');
 }
 
-// --- DINÂMICA DA TABELA E NOTAS ---
+// --- CONTROLES DE MODAL (SUBSTITUINDO O PROMPT) ---
+window.closeModal = function(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+};
+
+window.openTurmaModal = function() {
+    document.getElementById('input-turma-name').value = '';
+    document.getElementById('modal-turma').classList.remove('hidden');
+    document.getElementById('input-turma-name').focus();
+};
+
+window.confirmAddTurma = async function() {
+    const nomeTurma = document.getElementById('input-turma-name').value;
+    if (!nomeTurma || nomeTurma.trim() === "") return;
+    
+    const key = `${currentLevel}_${currentGrade}`;
+    if (!escolaConfig[key]) escolaConfig[key] = [];
+    
+    const nomeFormatado = nomeTurma.trim().toUpperCase();
+    if (escolaConfig[key].includes(nomeFormatado)) {
+        alert("Esta turma já está cadastrada!");
+        return;
+    }
+    
+    escolaConfig[key].push(nomeFormatado);
+    await setDoc(doc(db, "config", "estrutura_escola"), { turmasMap: escolaConfig }, { merge: true });
+    
+    updateTurmas(); 
+    document.getElementById('turma-select').value = nomeFormatado;
+    loadClassData();
+    closeModal('modal-turma');
+};
+
+window.openStudentModal = function() {
+    document.getElementById('input-student-name').value = '';
+    document.getElementById('modal-student').classList.remove('hidden');
+    document.getElementById('input-student-name').focus();
+};
+
+window.confirmAddStudent = function() {
+    const name = document.getElementById('input-student-name').value;
+    if (name && name.trim() !== "") {
+        students.push({ id: Date.now(), name: name.trim(), grades: {}, recup: null });
+        renderTable();
+        closeModal('modal-student');
+    }
+};
+
+window.deleteTurma = async function() {
+    const turmaSelect = document.getElementById('turma-select');
+    const turmaSelecionada = turmaSelect.value;
+    
+    if (!turmaSelecionada) return alert("Por favor, selecione uma turma primeiro.");
+    
+    if (confirm(`CRÍTICO: Tem certeza que deseja apagar a Turma ${turmaSelecionada}? Todos os alunos e notas vinculados serão perdidos para sempre.`)) {
+        const key = `${currentLevel}_${currentGrade}`;
+        escolaConfig[key] = escolaConfig[key].filter(t => t !== turmaSelecionada);
+        
+        await setDoc(doc(db, "config", "estrutura_escola"), { turmasMap: escolaConfig }, { merge: true });
+        
+        updateTurmas();
+        hideTable();
+    }
+};
+
 window.addActivityColumn = function() {
     const actId = `av_${Date.now()}`;
-    // Se for médio, peso padrão 100%. Se for fundamental, não tem peso percentual visível na regra de negócio atual, mas mantemos o objeto.
     activities.push({ id: actId, name: `Avaliação ${activities.length + 1}`, weight: 100 });
     renderTable();
 };
@@ -180,21 +203,14 @@ window.updateActivityName = function(id, value) {
     if(act) act.name = value;
 };
 
-window.addStudent = function() {
-    const name = prompt("Nome completo do aluno:");
-    if (name && name.trim() !== "") {
-        students.push({ id: Date.now(), name: name, grades: {}, recup: null });
-        renderTable();
-    }
-};
-
 window.removeStudent = function(studentId) {
-    if(confirm("Tem certeza que deseja excluir este aluno?")) {
+    if(confirm("Tem certeza de que quer excluir este aluno e suas respectivas notas?")) {
         students = students.filter(s => s.id !== studentId);
         renderTable();
     }
 };
 
+// --- RENDERIZAÇÃO DA TABELA ---
 function renderTable() {
     const headerRow = document.getElementById('table-header');
     const tbody = document.getElementById('table-body');
@@ -208,7 +224,7 @@ function renderTable() {
             <th class="activity-header">
                 <input type="text" value="${act.name}" onchange="updateActivityName('${act.id}', this.value)" placeholder="Nome">
                 <br>
-                <span style="font-size: 12px; font-weight: normal;">(Máx: ${maxValue})</span>
+                <span style="font-size: 11px; font-weight: normal;">(Máx: ${maxValue}${isMedio ? '%' : ''})</span>
             </th>
         `;
     });
@@ -222,7 +238,7 @@ function renderTable() {
 
     tbody.innerHTML = '';
     students.forEach(student => {
-        let row = `<tr><td>${student.name}</td>`;
+        let row = `<tr><td><strong>${student.name}</strong></td>`;
         
         activities.forEach(act => {
             const val = student.grades[act.id] !== undefined ? student.grades[act.id] : '';
@@ -234,14 +250,14 @@ function renderTable() {
         const needsRecup = medias.bimestral < threshold && activities.length > 0;
 
         row += `
-            <td class="readonly-cell">${medias.bimestral.toFixed(1)}</td>
+            <td class="readonly-cell">${medias.bimestral.toFixed(1)}${isMedio ? '%' : ''}</td>
             <td>
                 <input type="number" step="0.1" min="0" max="${maxValue}" 
                     value="${student.recup !== null ? student.recup : ''}" 
                     oninput="updateRecup(${student.id}, this.value)" 
                     ${needsRecup ? '' : 'disabled'}>
             </td>
-            <td class="readonly-cell">${medias.final.toFixed(1)}</td>
+            <td class="readonly-cell">${medias.final.toFixed(1)}${isMedio ? '%' : ''}</td>
             <td><button class="btn-danger" onclick="removeStudent(${student.id})">Excluir</button></td>
         </tr>`;
         
@@ -249,16 +265,16 @@ function renderTable() {
     });
 }
 
-// --- LÓGICA DE CÁLCULO ESPECÍFICA POR NÍVEL ---
+// --- LÓGICA E BANCO DE DADOS (Inalterado) ---
 window.updateGrade = function(studentId, activityId, value) {
     const student = students.find(s => s.id === studentId);
     if(value === "") {
         delete student.grades[activityId];
     } else {
-        // Trava de segurança para impedir notas acima do limite
         const max = currentLevel === 'medio' ? 100 : 10;
         let numVal = parseFloat(value);
         if (numVal > max) numVal = max;
+        if (numVal < 0) numVal = 0;
         student.grades[activityId] = numVal;
     }
     renderTable();
@@ -272,6 +288,7 @@ window.updateRecup = function(studentId, value) {
         const max = currentLevel === 'medio' ? 100 : 10;
         let numVal = parseFloat(value);
         if (numVal > max) numVal = max;
+        if (numVal < 0) numVal = 0;
         student.recup = numVal;
     }
     renderTable();
@@ -279,10 +296,7 @@ window.updateRecup = function(studentId, value) {
 
 function calculateAverages(student) {
     if (activities.length === 0) return { bimestral: 0, final: 0 };
-
-    let sum = 0;
-    let count = 0;
-
+    let sum = 0, count = 0;
     activities.forEach(act => {
         if (student.grades[act.id] !== undefined && !isNaN(student.grades[act.id])) {
             sum += student.grades[act.id];
@@ -290,25 +304,19 @@ function calculateAverages(student) {
         }
     });
 
-    // Média Aritmética Simples
     const mediaBimestral = count > 0 ? (sum / count) : 0;
-    
-    // Regra de Aprovação e Recuperação baseada no Nível
     const isMedio = currentLevel === 'medio';
     const threshold = isMedio ? 60 : 6.0;
     
     let mediaFinal = mediaBimestral;
     if (mediaBimestral < threshold && student.recup !== null && !isNaN(student.recup)) {
-        // A recuperação substitui a nota bimestral se for maior
-        mediaFinal = student.recup > mediaBimestral ? student.recup : mediaBimestral;
+        const novaMedia = (mediaBimestral + student.recup) / 2;
+        mediaFinal = novaMedia > mediaBimestral ? novaMedia : mediaBimestral;
     }
-
     return { bimestral: mediaBimestral, final: mediaFinal };
 }
 
-// --- BANCO DE DADOS FIREBASE ---
 async function fetchFromDatabaseSecurely(level, grade, turma) {
-    console.log(`Buscando turma ${turma} do ${grade} (${level})...`);
     try {
         const docId = `${level}_${grade}_${turma}`;
         const docRef = doc(db, "classes", docId);
@@ -323,8 +331,8 @@ async function fetchFromDatabaseSecurely(level, grade, turma) {
             activities = [];
         }
     } catch (error) {
-        console.error("Erro ao buscar dados: ", error);
-        alert("Falha ao carregar a turma. Verifique sua conexão.");
+        console.error("Erro ao ler banco de dados: ", error);
+        alert("Erro ao conectar com a nuvem. Cheque sua rede.");
     }
 }
 
@@ -333,7 +341,7 @@ window.saveDataSecurely = async function() {
     const originalText = btn.textContent;
     
     try {
-        btn.textContent = "Salvando...";
+        btn.textContent = "Sincronizando Banco de Dados...";
         btn.disabled = true;
         
         const docId = `${currentLevel}_${currentGrade}_${currentTurma}`;
@@ -347,20 +355,18 @@ window.saveDataSecurely = async function() {
             }, { merge: true });
         });
         
-        alert("Notas salvas e protegidas na Nuvem!");
+        alert("Sincronização concluída com sucesso! Suas notas estão salvas na Nuvem.");
     } catch (error) {
         console.error("Erro na transação: ", error);
-        alert("Erro de conexão com o banco. Aguarde um momento e tente novamente.");
+        alert("Falha crítica ao tentar salvar. Nenhuma alteração foi perdida localmente, tente salvar de novo.");
     } finally {
         btn.textContent = originalText;
         btn.disabled = false;
     }
 };
 
-// --- GERAÇÃO DE PDF ---
 window.generateBoletimPDF = function() {
     const element = document.getElementById('grades-table').cloneNode(true);
-    
     element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
     element.querySelectorAll('input').forEach(input => {
         const span = document.createElement('span');
