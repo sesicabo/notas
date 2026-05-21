@@ -42,8 +42,16 @@
                 <option value="">3. Selecione a Turma...</option>
             </select>
 
+            <select id="subject-select" disabled onchange="loadSubjectData()">
+                <option value="">4. Selecione a Disciplina...</option>
+            </select>
+        </div>
+
+        <div class="setup-buttons-row">
             <button id="btn-add-turma" class="btn-secondary hidden" onclick="openTurmaModal()">+ Turma</button>
             <button id="btn-del-turma" class="btn-danger hidden" onclick="deleteTurma()">- Excluir Turma</button>
+            <button id="btn-add-sub" class="btn-secondary hidden" onclick="openDisciplinaModal()">+ Disciplina</button>
+            <button id="btn-del-sub" class="btn-danger hidden" onclick="deleteDisciplina()">- Excluir Disciplina</button>
         </div>
 
         <div id="management-section" class="hidden">
@@ -51,7 +59,7 @@
             <button onclick="openStudentModal()" class="btn-secondary">+ Adicionar Aluno</button>
             <button onclick="addActivityColumn()" class="btn-secondary">+ Nova Avaliação</button>
             <button onclick="saveDataSecurely()" class="btn-success" id="btn-save">💾 Salvar Notas na Nuvem</button>
-            <button onclick="generateBoletimPDF()" class="btn-primary">📄 Gerar Boletins (PDF)</button>
+            <button onclick="generateBoletimCompletoPDF()" class="btn-primary">📄 Gerar Pauta Geral (PDF)</button>
         </div>
 
         <div class="table-container hidden" id="table-container">
@@ -79,6 +87,18 @@
             <div class="modal-actions">
                 <button onclick="closeModal('modal-turma')" class="btn-secondary">Cancelar</button>
                 <button onclick="confirmAddTurma()" class="btn-primary">Adicionar Turma</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-disciplina" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3>Adicionar Nova Disciplina</h3>
+            <p>Digite o nome da matéria (Ex: Matemática, Português, História):</p>
+            <input type="text" id="input-disciplina-name" placeholder="Ex: Matemática">
+            <div class="modal-actions">
+                <button onclick="closeModal('modal-disciplina')" class="btn-secondary">Cancelar</button>
+                <button onclick="confirmAddDisciplina()" class="btn-primary">Adicionar Disciplina</button>
             </div>
         </div>
     </div>
