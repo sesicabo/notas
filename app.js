@@ -278,13 +278,25 @@ window.confirmAddStudent = function() {
 window.addActivityColumn = function() {
     if(!activities[currentSubject]) activities[currentSubject] = [];
     const actId = `av_${Date.now()}`;
-    activities[currentSubject].push({ id: actId, name: `Avaliação ${activities[currentSubject].length + 1}`, weight: 100 });
+    // Adiciona com o peso padrão inicial de 1 para simplificar o cálculo por padrão.
+    activities[currentSubject].push({ id: actId, name: `Avaliação ${activities[currentSubject].length + 1}`, weight: 1 });
     renderTable();
 };
 
 window.updateActivityName = function(id, value) {
     const act = activities[currentSubject].find(a => a.id === id);
     if(act) act.name = value;
+};
+
+// NOVA FUNÇÃO: Atualiza os pesos e recalcula em tempo real.
+window.updateActivityWeight = function(id, value) {
+    const act = activities[currentSubject].find(a => a.id === id);
+    if(act) {
+        let val = parseFloat(value);
+        if(isNaN(val) || val <= 0) val = 1; // Trava de segurança para não quebrar o cálculo
+        act.weight = val;
+        renderTable();
+    }
 };
 
 window.removeStudent = function(studentId) {
@@ -305,11 +317,14 @@ function renderTable() {
 
     headerRow.innerHTML = `<th>Aluno</th>`;
     subActivities.forEach(act => {
+        let currentWeight = act.weight !== undefined ? act.weight : 1;
         headerRow.innerHTML += `
             <th class="activity-header">
                 <input type="text" value="${act.name}" onchange="updateActivityName('${act.id}', this.value)" placeholder="Nome">
                 <br>
-                <span style="font-size: 11px; font-weight: normal; color: rgba(255,255,255,0.6);">(Máx: ${maxValue}${isMedio ? '%' : ''})</span>
+                <div style="font-size: 11px; font-weight: normal; color: rgba(255,255,255,0.7); display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;">
+                    Peso: <input type="number" value="${currentWeight}" onchange="updateActivityWeight('${act.id}', this.value)" style="width: 45px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 3px; color: white; text-align: center; font-size: 11px; outline: none; padding: 2px;" min="0.1" step="0.1">
+                </div>
             </th>
         `;
     });
@@ -390,21 +405,24 @@ window.updateRecup = function(studentId, value) {
     renderTable();
 };
 
+// CÁLCULO ATUALIZADO: Implementação de Média Ponderada
 function calculateAverages(student, subjectName) {
     const subActivities = activities[subjectName] || [];
     if (subActivities.length === 0) return { bimestral: 0, final: 0 };
 
-    let sum = 0, count = 0;
+    let sum = 0, weightSum = 0;
     const subGrades = student.grades[subjectName] || {};
 
     subActivities.forEach(act => {
         if (subGrades[act.id] !== undefined && !isNaN(subGrades[act.id])) {
-            sum += subGrades[act.id];
-            count++;
+            let w = act.weight !== undefined ? parseFloat(act.weight) : 1;
+            if (isNaN(w) || w <= 0) w = 1; // Proteção contra pesos zerados
+            sum += subGrades[act.id] * w;
+            weightSum += w;
         }
     });
 
-    const mediaBimestral = count > 0 ? (sum / count) : 0;
+    const mediaBimestral = weightSum > 0 ? (sum / weightSum) : 0;
     const isMedio = currentLevel === 'medio';
     const threshold = isMedio ? 60 : 6.0;
 
@@ -412,6 +430,7 @@ function calculateAverages(student, subjectName) {
     const recupMap = student.recup || {};
     const recupNota = recupMap[subjectName];
 
+    // Regra da Recuperação: (Média Bimestral + Recuperação) / 2
     if (mediaBimestral < threshold && recupNota !== null && recupNota !== undefined && !isNaN(recupNota)) {
         const novaMedia = (mediaBimestral + recupNota) / 2;
         mediaFinal = novaMedia > mediaBimestral ? novaMedia : mediaBimestral;
@@ -473,20 +492,8 @@ window.saveDataSecurely = async function() {
 
 // ================================================================
 // GERAÇÃO DE PDF — CORREÇÃO DEFINITIVA
-//
-// CAUSA DO BUG: o código anterior usava position:absolute com
-// top/left: -9999px. O html2canvas então ROLAVA o documento inteiro
-// para a coordenada (-9999,-9999) para capturar o elemento,
-// deixando a página completamente em branco.
-//
-// SOLUÇÃO: passar o HTML como STRING diretamente ao html2pdf().from().
-// Quando recebe uma string, o html2pdf cria um container interno
-// isolado, renderiza sem mexer na viewport e o destrói sozinho.
-// Nenhum appendChild/removeChild manual é necessário.
 // ================================================================
 
-// Opções html2canvas comuns — scrollX/Y zerados para evitar
-// qualquer deslocamento de viewport durante a captura.
 const _canvasOpts = {
     scale: 2,
     useCORS: true,
@@ -495,7 +502,6 @@ const _canvasOpts = {
     scrollY: 0
 };
 
-// Estilos de cor para os PDFs (inline — independente do CSS externo)
 const _C = {
     navy:    '#0B1E3D',
     gold:    '#C9A227',
@@ -520,13 +526,11 @@ window.generateIndividualPDF = function(studentId) {
     const levelLabel = document.getElementById('level-select')
         .options[document.getElementById('level-select').selectedIndex].text;
 
-    // Calcula o número máximo de avaliações entre todas as disciplinas
     let maxAv = 0;
     subjects.forEach(sub => {
         if (activities[sub] && activities[sub].length > maxAv) maxAv = activities[sub].length;
     });
 
-    // Cabeçalho dinâmico
     let theadCols = `<th style="padding:10px 12px;text-align:left;border:1px solid ${_C.border};background:${_C.navy};color:#fff;font-size:12px;">Disciplina</th>`;
     for (let i = 0; i < maxAv; i++) {
         theadCols += `<th style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${_C.navy};color:#fff;font-size:12px;">Av. ${i+1}</th>`;
@@ -537,7 +541,6 @@ window.generateIndividualPDF = function(studentId) {
         <th style="padding:10px 12px;text-align:center;border:1px solid ${_C.border};background:${_C.navy};color:#fff;font-size:12px;">Média Final</th>
     `;
 
-    // Linhas por disciplina
     let tbodyRows = '';
     subjects.forEach((sub, idx) => {
         const medias    = calculateAverages(student, sub);
@@ -574,15 +577,12 @@ window.generateIndividualPDF = function(studentId) {
         tbodyRows = `<tr><td colspan="${cols}" style="padding:20px;text-align:center;color:${_C.muted};border:1px solid ${_C.border};">Nenhuma disciplina vinculada.</td></tr>`;
     }
 
-    // HTML completo como string — NUNCA é inserido no DOM manualmente
     const htmlString = `
     <div style="font-family:Arial,sans-serif;color:${_C.text};background:#fff;padding:0;margin:0;">
-
         <div style="background:${_C.navy};padding:20px 28px;border-bottom:4px solid ${_C.gold};">
             <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;">SESI Cabo de Santo Agostinho</div>
             <div style="font-size:11px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:1.5px;">Boletim Escolar Individual</div>
         </div>
-
         <div style="padding:16px 28px;background:#F7F9FB;border-bottom:1px solid ${_C.border};">
             <table style="width:100%;border-collapse:collapse;">
                 <tr>
@@ -601,21 +601,17 @@ window.generateIndividualPDF = function(studentId) {
                 </tr>
             </table>
         </div>
-
         <div style="padding:20px 28px;">
             <table style="width:100%;border-collapse:collapse;">
                 <thead><tr>${theadCols}</tr></thead>
                 <tbody>${tbodyRows}</tbody>
             </table>
         </div>
-
         <div style="padding:14px 28px;border-top:1px solid ${_C.border};text-align:center;">
             <p style="font-size:10px;color:${_C.muted};margin:0;">Documento gerado digitalmente — Sistema de Gestão Acadêmica SESI-PE</p>
         </div>
     </div>`;
 
-    // ✅ CORREÇÃO: from(string) — html2pdf gerencia o DOM internamente.
-    // Não há position:absolute nem appendChild manual. Sem risco de branco.
     window.html2pdf().set({
         margin:      [8, 8, 8, 8],
         filename:    `Boletim_${student.name.replace(/\s+/g, '_')}.pdf`,
@@ -629,17 +625,36 @@ window.generateIndividualPDF = function(studentId) {
 // PAUTA GERAL DA TURMA
 // ----------------------------------------------------------------
 window.generateBoletimCompletoPDF = function() {
+    const element = document.getElementById('grades-table').cloneNode(true);
+    
+    element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
+    
+    element.querySelectorAll('input').forEach(input => {
+        const span = document.createElement('span');
+        span.textContent = input.value || "-";
+        span.style.fontWeight = 'bold';
+        
+        // Garante que o texto de peso do cabeçalho continue branco na impressão
+        if (input.closest('th')) {
+            span.style.color = '#ffffff';
+            span.style.fontWeight = 'normal';
+        } else {
+            span.style.color = '#0B1E3D';
+        }
+        
+        input.parentNode.replaceChild(span, input);
+    });
+
     const isMedio = currentLevel === 'medio';
     const unit = isMedio ? '%' : '';
     const subActivities = activities[currentSubject] || [];
 
-    // Cabeçalho das colunas de avaliação
     let avCols = '';
     subActivities.forEach(act => {
-        avCols += `<th style="padding:10px 12px;text-align:center;border:1px solid ${_C.navy};background:${_C.navy};color:#fff;font-size:11px;white-space:nowrap;">${act.name}</th>`;
+        let currentWeight = act.weight !== undefined ? act.weight : 1;
+        avCols += `<th style="padding:10px 12px;text-align:center;border:1px solid ${_C.navy};background:${_C.navy};color:#fff;font-size:11px;white-space:nowrap;">${act.name}<br><span style="font-size:9px;font-weight:normal;">Peso: ${currentWeight}</span></th>`;
     });
 
-    // Linhas por aluno
     let tbodyRows = '';
     students.forEach((student, idx) => {
         const medias    = calculateAverages(student, currentSubject);
@@ -670,7 +685,6 @@ window.generateBoletimCompletoPDF = function() {
         tbodyRows = `<tr><td colspan="${cols}" style="padding:20px;text-align:center;color:${_C.muted};border:1px solid ${_C.border};">Nenhum aluno cadastrado.</td></tr>`;
     }
 
-    // HTML completo como string
     const htmlString = `
     <div style="font-family:Arial,sans-serif;color:${_C.text};background:#fff;padding:0;margin:0;">
 
@@ -709,7 +723,6 @@ window.generateBoletimCompletoPDF = function() {
         </div>
     </div>`;
 
-    // ✅ CORREÇÃO: from(string) — html2pdf gerencia o DOM internamente.
     window.html2pdf().set({
         margin:      [6, 6, 6, 6],
         filename:    `Pauta_Geral_${currentGrade}_${currentTurma}_${currentSubject}.pdf`,
