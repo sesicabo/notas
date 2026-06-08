@@ -278,9 +278,27 @@ window.confirmAddStudent = function() {
 window.addActivityColumn = function() {
     if(!activities[currentSubject]) activities[currentSubject] = [];
     const actId = `av_${Date.now()}`;
-    // Adiciona com o peso padrão inicial de 1 para simplificar o cálculo por padrão.
     activities[currentSubject].push({ id: actId, name: `Avaliação ${activities[currentSubject].length + 1}`, weight: 1 });
     renderTable();
+};
+
+// NOVA FUNÇÃO: Excluir uma coluna de avaliação específica
+window.removeActivityColumn = function(actId) {
+    const act = activities[currentSubject].find(a => a.id === actId);
+    if(!act) return;
+
+    if(confirm(`Tem certeza que deseja excluir a coluna "${act.name}"? Todas as notas lançadas nela serão apagadas.`)) {
+        activities[currentSubject] = activities[currentSubject].filter(a => a.id !== actId);
+        
+        // Remove as notas desta atividade do registro dos alunos
+        students.forEach(st => {
+            if(st.grades && st.grades[currentSubject] && st.grades[currentSubject][actId] !== undefined) {
+                delete st.grades[currentSubject][actId];
+            }
+        });
+        
+        renderTable();
+    }
 };
 
 window.updateActivityName = function(id, value) {
@@ -288,12 +306,11 @@ window.updateActivityName = function(id, value) {
     if(act) act.name = value;
 };
 
-// NOVA FUNÇÃO: Atualiza os pesos e recalcula em tempo real.
 window.updateActivityWeight = function(id, value) {
     const act = activities[currentSubject].find(a => a.id === id);
     if(act) {
         let val = parseFloat(value);
-        if(isNaN(val) || val <= 0) val = 1; // Trava de segurança para não quebrar o cálculo
+        if(isNaN(val) || val <= 0) val = 1; 
         act.weight = val;
         renderTable();
     }
@@ -320,8 +337,10 @@ function renderTable() {
         let currentWeight = act.weight !== undefined ? act.weight : 1;
         headerRow.innerHTML += `
             <th class="activity-header">
-                <input type="text" value="${act.name}" onchange="updateActivityName('${act.id}', this.value)" placeholder="Nome">
-                <br>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 5px;">
+                    <input type="text" value="${act.name}" onchange="updateActivityName('${act.id}', this.value)" placeholder="Nome" style="width: 100%;">
+                    <button onclick="removeActivityColumn('${act.id}')" title="Excluir Avaliação" style="background: transparent; border: none; color: #ff6b6b; font-size: 15px; cursor: pointer; padding: 0;">✕</button>
+                </div>
                 <div style="font-size: 11px; font-weight: normal; color: rgba(255,255,255,0.7); display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;">
                     Peso: <input type="number" value="${currentWeight}" onchange="updateActivityWeight('${act.id}', this.value)" style="width: 45px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 3px; color: white; text-align: center; font-size: 11px; outline: none; padding: 2px;" min="0.1" step="0.1">
                 </div>
@@ -405,7 +424,7 @@ window.updateRecup = function(studentId, value) {
     renderTable();
 };
 
-// CÁLCULO ATUALIZADO: Implementação de Média Ponderada
+// CÁLCULO ATUALIZADO: Regra de Recuperação por Substituição
 function calculateAverages(student, subjectName) {
     const subActivities = activities[subjectName] || [];
     if (subActivities.length === 0) return { bimestral: 0, final: 0 };
@@ -416,7 +435,7 @@ function calculateAverages(student, subjectName) {
     subActivities.forEach(act => {
         if (subGrades[act.id] !== undefined && !isNaN(subGrades[act.id])) {
             let w = act.weight !== undefined ? parseFloat(act.weight) : 1;
-            if (isNaN(w) || w <= 0) w = 1; // Proteção contra pesos zerados
+            if (isNaN(w) || w <= 0) w = 1;
             sum += subGrades[act.id] * w;
             weightSum += w;
         }
@@ -430,10 +449,11 @@ function calculateAverages(student, subjectName) {
     const recupMap = student.recup || {};
     const recupNota = recupMap[subjectName];
 
-    // Regra da Recuperação: (Média Bimestral + Recuperação) / 2
+    // NOVA REGRA: A nota da recuperação substitui a média final.
     if (mediaBimestral < threshold && recupNota !== null && recupNota !== undefined && !isNaN(recupNota)) {
-        const novaMedia = (mediaBimestral + recupNota) / 2;
-        mediaFinal = novaMedia > mediaBimestral ? novaMedia : mediaBimestral;
+        if (recupNota > mediaBimestral) {
+            mediaFinal = recupNota;
+        }
     }
     return { bimestral: mediaBimestral, final: mediaFinal };
 }
@@ -491,7 +511,7 @@ window.saveDataSecurely = async function() {
 };
 
 // ================================================================
-// GERAÇÃO DE PDF — CORREÇÃO DEFINITIVA
+// GERAÇÃO DE PDF — NATIVA DO NAVEGADOR
 // ================================================================
 
 const _canvasOpts = {
@@ -514,9 +534,6 @@ const _C = {
     red:     '#B8233F'
 };
 
-// ----------------------------------------------------------------
-// BOLETIM INDIVIDUAL
-// ----------------------------------------------------------------
 window.generateIndividualPDF = function(studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
@@ -621,33 +638,30 @@ window.generateIndividualPDF = function(studentId) {
     }).from(htmlString).save();
 };
 
-// ----------------------------------------------------------------
-// PAUTA GERAL DA TURMA
-// ----------------------------------------------------------------
 window.generateBoletimCompletoPDF = function() {
+    const isMedio = currentLevel === 'medio';
+    const unit = isMedio ? '%' : '';
+    const subActivities = activities[currentSubject] || [];
+
     const element = document.getElementById('grades-table').cloneNode(true);
-    
     element.querySelectorAll('th:last-child, td:last-child').forEach(el => el.remove());
     
+    // Remove os novos botões de fechar e lixo dos headers da tabela no clone para impressão
+    element.querySelectorAll('button').forEach(btn => btn.remove());
+
     element.querySelectorAll('input').forEach(input => {
         const span = document.createElement('span');
         span.textContent = input.value || "-";
         span.style.fontWeight = 'bold';
         
-        // Garante que o texto de peso do cabeçalho continue branco na impressão
         if (input.closest('th')) {
             span.style.color = '#ffffff';
             span.style.fontWeight = 'normal';
         } else {
             span.style.color = '#0B1E3D';
         }
-        
         input.parentNode.replaceChild(span, input);
     });
-
-    const isMedio = currentLevel === 'medio';
-    const unit = isMedio ? '%' : '';
-    const subActivities = activities[currentSubject] || [];
 
     let avCols = '';
     subActivities.forEach(act => {
